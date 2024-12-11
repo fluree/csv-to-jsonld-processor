@@ -1,0 +1,82 @@
+This crate is intended to solve for the following scenario:
+
+- A user has a set of spreadsheets / CSV files that describe a data model and a set of instance data sufficient to execute the following
+    (1) production of a target JSON-LD vocabulary / data model
+    (2) one or more JSON-LD context documents that can be used for handling the instance data
+    (3) one or more JSON-LD documents that represent the instance data
+- To accomplish this, the crate will also expect/require a kind of spec/manifest (written in JSON-LD) that articulates the procedures and configuration needed to work sequentially through the spreadsheets / CSV files to produce the above
+
+This crate MUST do the following:
+
+- Provide a CLI that can be used to execute the above process
+- Take a spec/manifest file as input
+- Use the manifest file to understand how to process a set of spreadsheets / CSV files. This would include...
+    - information about the path(s) to the spreadsheet/CSV files
+    - information about the sequence of files to be processed
+    - any necessary / optional configuration for use in processing the files
+- The crate would then produce the following:
+    - a JSON-LD vocabulary / data model
+    - one or more JSON-LD context documents
+    - one or more JSON-LD documents that represent the instance data (and which reference the appropriate context documents)
+
+This crate MAY do the following:
+- Provide help in generating the spec/manifest file (i.e. the CLI could be used w/ an argument of the path to the spreadsheet/CSV files and the crate could generate a baseline spec/manifest file that can be updated/configured as needed)
+- Provide a way to validate the spec/manifest file
+- Allow configuration for `--strict`, where certain irregularities would cause a failure / exit (without --strict, the crate would just log a warning and continue)
+
+Some technical considerations:
+- Ideally, this project workspace gets configured as a lib crate and a bin crate
+- The lib crate should ideally be able to compile to wasm, so that a node-based CLI can be built w/ the same functionality
+    - I would like to leverage some multi-threading in the lib crate, so the wasm-targeted code would need to modify that to accommodate node's single-threaded requirements
+
+
+Some notes on elements of the manifest that are significant to processing:
+
+```
+{
+  "@context": {
+    "@vocab": "https://ns.flur.ee/imports#",
+    "sequence": {
+      "@id": "https://ns.flur.ee/imports#sequence",
+      "@container": "@list"
+    }
+  },
+  "@type": "CSVImportManifest",
+  "name": "Manifest for Dell Bill of Materials CSV Import",
+  "description": "This manifest describes the process for importing a set of CSV files that describe a Dell Bill of Materials Inventory",
+  "model": { // The model section will define how model/vocabulary data should be processed
+    "baseIRI": "http://example.com/dell-bom/terms/", // the base IRI for the model, which should be applied to all entities defined in the ontology
+    "path": "model/", // the path to the directory containing the model/vocabulary data
+    "sequence": [ // model files should be processed in sequence. elements of an individual file should be processed in parallel
+      {
+        "path": "main.csv", // the path to the model file relative to the model directory
+        "@type": [
+          "CSVImportStep",
+          "ModelStep",
+          "BaseVocabularyData" // this particular class will be significant. we will later introduce other classes that, if used, will process model data slightly differently
+        ],
+        "overrides": [ // while we will expect certain CSV headers as normative for processing, overrides allows us to handle individual columns differently. For now, a simple mapping from header name to IRI is all that is needed, but we should prepare for additional override data to be possible
+          {
+            "column": "Reasoning Logic", // the name of the column in the CSV file
+            "mapTo": "http://example.com/dell-bom/terms/reasoningLogic" // the IRI to which the column should be mapped
+          }
+        ]
+      }
+    ]
+  },
+  "instances": { // The instances section will define how instance data should be processed
+    "baseIRI": "http://example.com/dell-bom/ids/", // the base IRI for the instance data, which should be applied to all entities defined in the instance data
+    "path": "instances/", // the path to the directory containing the instance data
+    "sequence": [ // instance files should be processed in sequence. elements of an individual file should be processed in parallel
+      {
+        "path": "products.csv", // the path to the instance file relative to the instance directory
+        "@type": [
+          "CSVImportStep",
+          "InstanceStep",
+          "SimpleInstanceData" // this particular class will be significant. we will later introduce other classes that, if used, will process instance data slightly differently
+        ]
+      }
+    ]
+  }
+}
+```

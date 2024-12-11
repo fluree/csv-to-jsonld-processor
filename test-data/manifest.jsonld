@@ -1,0 +1,86 @@
+{
+  "@context": {
+    "@vocab": "https://ns.flur.ee/imports#",
+    "sequence": {
+      "@id": "https://ns.flur.ee/imports#sequence",
+      "@container": "@list"
+    }
+  },
+  "@type": "CSVImportManifest",
+  "@id": "model/dell",
+  "name": "Manifest for Dell Bill of Materials CSV Import",
+  "description": "This manifest describes the process for importing a set of CSV files that describe a Dell Bill of Materials Inventory",
+  "model": {
+    "baseIRI": "http://example.com/dell-bom/terms/",
+    "path": "model/",
+    "sequence": [
+      {
+        "path": "main.csv",
+        "@type": [
+          "CSVImportStep",
+          "ModelStep",
+          "BaseVocabularyData"
+        ],
+        "overrides": [
+          {
+            "column": "Custom Class Name Header",
+            "mapTo": "Class.ID"
+          }
+        ],
+        "extraItems": [
+          {
+            "column": "Reasoning Logic",
+            "mapTo": "http://example.com/dell-bom/terms/reasoningLogic"
+          }
+        ]
+      },
+      {
+        "path": "material_class_values_list.csv",
+        "@type": [
+          "CSVImportStep",
+          "ModelStep",
+          "SubClassVocabularyStep"
+        ],
+        "extraItems": [
+          {
+            "column": "Category",
+            "mapTo": "http://example.com/dell-bom/terms/category"
+          }
+        ]
+      }
+    ]
+  },
+  "instances": {
+    "baseIRI": "http://example.com/dell-bom/ids/",
+    "path": "instances/",
+    "sequence": [
+      {
+        "path": "products.csv",
+        "@type": [
+          "CSVImportStep",
+          "InstanceStep",
+          "SimpleInstanceData"
+        ],
+        "instanceType": "Product"
+      },
+      {
+        "path": "bill_of_materials.csv",
+        "@type": [
+          "CSVImportStep",
+          "InstanceStep",
+          "SimpleInstanceData"
+        ],
+        "instanceType": "BillOfMaterials",
+        "ignore": [
+          "has Material Class",
+          "Material Class Name",
+          "Material Class Description",
+          "Material Name",
+          "Material Unit Price",
+          "Lowest Cost Alternative Material Name",
+          "Lowest Cost Alternative Material Manufacturer"
+        ]
+      }
+    ]
+  }
+}

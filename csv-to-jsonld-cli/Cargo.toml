@@ -1,0 +1,19 @@
+[package]
+name = "csv-to-jsonld-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+
+[dependencies]
+csv-to-jsonld-lib = { path = "../csv-to-jsonld-lib" }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+
+[[bin]]
+name = "csv-to-jsonld"
+path = "src/main.rs"
