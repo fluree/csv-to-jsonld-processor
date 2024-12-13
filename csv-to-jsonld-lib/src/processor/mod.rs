@@ -1,14 +1,15 @@
 use crate::error::ProcessorError;
-use crate::instance::InstanceProcessor;
-use crate::manifest::Manifest;
-use crate::vocabulary::VocabularyProcessor;
+use crate::instance::InstanceManager;
+use crate::manifest::{InstanceStep, Manifest, ModelStep, StepType};
+use crate::vocabulary::VocabularyManager;
+use crate::{contains_variant, ImportStep};
 use std::path::PathBuf;
 use std::sync::Arc;
 
 pub struct Processor {
     manifest: Arc<Manifest>,
-    vocabulary_processor: VocabularyProcessor,
-    instance_processor: InstanceProcessor,
+    vocabulary_manager: VocabularyManager,
+    instance_manager: InstanceManager,
     base_path: PathBuf,
     is_strict: bool,
     output_path: PathBuf,
@@ -26,8 +27,8 @@ impl Processor {
         let manifest = Arc::new(manifest);
         tracing::info!("Creating processor with base path: {:?}", base_path);
         Self {
-            vocabulary_processor: VocabularyProcessor::new(Arc::clone(&manifest), is_strict),
-            instance_processor: InstanceProcessor::new(Arc::clone(&manifest), is_strict),
+            vocabulary_manager: VocabularyManager::new(Arc::clone(&manifest), is_strict),
+            instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict),
             base_path,
             output_path,
             manifest,
@@ -51,20 +52,20 @@ impl Processor {
         tracing::info!("Starting processing with manifest: {}", self.manifest.name);
 
         tracing::info!("Processing model files...");
-        let model_sequence = self.model_sequence();
-        for step in model_sequence {
-            self.process_model_step(&step).await?;
+        let mut model_sequence = self.model_sequence();
+        for step in model_sequence.drain(..) {
+            self.process_model_step(step).await?;
         }
 
         // Clone the vocabulary for the instance processor before consuming it to write to disk
-        let vocabulary = self.vocabulary_processor.get_vocabulary();
+        let vocabulary = self.vocabulary_manager.get_vocabulary();
 
         // Generate and save vocabulary
-        self.vocabulary_processor
+        self.vocabulary_manager
             .save_vocabulary(&self.output_path)
             .await?;
 
-        self.instance_processor.set_vocabulary(vocabulary);
+        self.instance_manager.set_vocabulary(vocabulary);
 
         tracing::info!("Processing instance files...");
         let instance_sequence = self.instance_sequence();
@@ -73,7 +74,7 @@ impl Processor {
         }
 
         // Save instance data
-        self.instance_processor
+        self.instance_manager
             .save_instances(&self.output_path)
             .await?;
 
@@ -81,26 +82,19 @@ impl Processor {
         Ok(())
     }
 
-    async fn process_model_step(
-        &mut self,
-        step: &crate::manifest::ImportStep,
-    ) -> Result<(), ProcessorError> {
+    async fn process_model_step(&mut self, step: ImportStep) -> Result<(), ProcessorError> {
         tracing::info!(
             "Processing model step: {} (types: {:?})",
             step.path,
             step.types
         );
+        let model_path = self.resolve_path(&self.manifest.model.path);
 
-        if step.types.contains(&"BaseVocabularyData".to_string()) {
+        if contains_variant!(step.types, StepType::ModelStep(_)) {
             tracing::debug!("Processing as base vocabulary data");
-            let model_path = self.resolve_path(&self.manifest.model.path);
-            self.vocabulary_processor
-                .process_base_vocabulary(step, model_path.to_str().unwrap())
+            self.vocabulary_manager
+                .process_vocabulary(step, model_path.to_str().unwrap())
                 .await?;
-        }
-
-        if step.types.contains(&"SubClassVocabularyStep".to_string()) {
-            tracing::warn!("SubClassVocabularyStep not yet implemented");
         }
 
         Ok(())
@@ -116,10 +110,13 @@ impl Processor {
             step.types
         );
 
-        if step.types.contains(&"SimpleInstanceData".to_string()) {
+        if contains_variant!(
+            &step.types,
+            StepType::InstanceStep(InstanceStep::BasicInstanceStep)
+        ) {
             tracing::debug!("Processing as simple instance data");
             let instance_path = self.resolve_path(&self.manifest.instances.path);
-            self.instance_processor
+            self.instance_manager
                 .process_simple_instance(step, instance_path.to_str().unwrap())
                 .await?;
         }

@@ -9,6 +9,9 @@
     "rdfs:range": {
       "@type": "@id"
     },
+    "rdfs:subClassOf": {
+      "@type": "@id"
+    },
     "xsd": "http://www.w3.org/2001/XMLSchema#"
   },
   "ledger": "model/dell",
@@ -20,45 +23,17 @@
     ],
     "properties": [
       {
-        "@id": "http://example.com/dell-bom/terms/materialName",
+        "@id": "http://example.com/dell-bom/terms/materialUnitPrice",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The name of the Material.",
+        "rdfs:comment": "The unit cost of the Material.  If the Material Class is an OEM component, then this is the purchase price of the Material from the Manufacturer.  If this is a non-OEM component, then this is the internal calculated cost to internally source",
         "rdfs:domain": [
           "http://example.com/dell-bom/terms/Material"
         ],
-        "rdfs:label": "Material Name",
+        "rdfs:label": "Material Unit Price",
         "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/hasProduct",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The specific product being described by the individual Bill of Materials record",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/BillOfMaterials"
-        ],
-        "rdfs:label": "has Product",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/Product"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/nextShipmentReceiptDate",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The date when the next shipment of inventory is due from the Manufacturer",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Next Shipment Receipt Date",
-        "rdfs:range": [
-          "xsd:date"
+          "xsd:decimal"
         ]
       },
       {
@@ -90,61 +65,33 @@
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/minimumRetailPriceBWCompetitorPrice",
+        "@id": "http://example.com/dell-bom/terms/maxMaterialUnitPrice",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Minimum Retail Price at Optimal Gross Margin",
-        "rdfs:comment": "The difference between the theoretical minimum retail price compared to equivalent competitive product retail price.  The goal is for this number to be higher compared to the B/(W) Competitor Cost",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Minimum Retail Price B/(W) Competitor Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/materialDescription",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The description of the Material, as saved in the ERP and Vendor Management system",
+        "http://example.com/dell-bom/terms/reasoningLogic": "Maximum of Material Price for all Materials within the same Material Class",
+        "rdfs:comment": "The highest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
         "rdfs:domain": [
           "http://example.com/dell-bom/terms/Material"
         ],
-        "rdfs:label": "Material Description",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/minAlternateMaterialUnitPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "Minimum of Material Price for all Materials within the same Material Class",
-        "rdfs:comment": "The theoretical lowest possible Material Unit Cost based on available alternative materials in warehouse inventory , for each Material Class",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/BillOfMaterials"
-        ],
-        "rdfs:label": "Min Alternate Material Unit Price",
+        "rdfs:label": "Max Material Unit Price",
         "rdfs:range": [
           "xsd:decimal"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/activeSince",
+        "@id": "http://example.com/dell-bom/terms/bWCompetitorMargins",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The date when the contract to begin conducting business with the Manufacturer was signed",
+        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Gross Margin and the Est Competitor Margins",
+        "rdfs:comment": "The difference between the product Gross Margin and the estimated equivalent competitive product margin.  The higher the number, the lower our cost to deliver the product compared to the competitors in the marketplace.  The lower the number, the more expensive it is to produce the product compared to the competition.  Typically, the lowest performing products that need to be optimized are the ones with a high negative competitive ratio and a negative better than (b) / worse than (w) competitor margin",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Manufacturer"
+          "http://example.com/dell-bom/terms/Product"
         ],
-        "rdfs:label": "Active Since",
+        "rdfs:label": "B/(W) Competitor Margins",
         "rdfs:range": [
-          "xsd:date"
+          "xsd:decimal"
         ]
       },
       {
@@ -162,30 +109,160 @@
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/priceRatioComparedToMax",
+        "@id": "http://example.com/dell-bom/terms/beforeAfter",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Max Material Unit Price and the Material Unit Price, divided by the Material Unit Price",
-        "rdfs:comment": "The ratio of how much less expensive a Material is compared to the highest Material Price unit within that Material Class.  This number is always less than or equal to zero, and the lower the number, the better as this represents that a Material is distant from the maximum theoretical price for that Material Class",
+        "rdfs:comment": "Whether the abbreviation code typically appears before or after the characteristic value when it appears in the instance of the Material Description.  For example, the Part Number abbreviation tends to appear before the value in a Material Description (e.g., \"PN: 12345\").  However the abbreviation for the number of components usually comes after the presence of the value in the description (e.g., \"8 COMP\")",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Material"
+          "http://example.com/dell-bom/terms/MaterialFeature"
         ],
-        "rdfs:label": "Price Ratio Compared to Max",
+        "rdfs:label": "Before / After",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/productName",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The trade name of the product as it is sold across retail channels",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Product Name",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/quantityUnitsAvailable",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The total number of units available at the Warehouse Location for that Material",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/WarehouseInventory"
+        ],
+        "rdfs:label": "Quantity Units Available",
+        "rdfs:range": [
+          "xsd:integer"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/minimumAlternatePrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The theoretical lowest possible total cost of the Material Class, based on multiplying the Minimum alternate material unit price by the quantity",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/BillOfMaterials"
+        ],
+        "rdfs:label": "Minimum Alternate Price",
         "rdfs:range": [
           "xsd:decimal"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/productQualityRating",
+        "@id": "http://example.com/dell-bom/terms/productCostOfGoodsSold",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The product quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product quality, and the Product Manager must perform a Supplier Risk Review within the calendar quarter as outlined in the Supplier Risk Management policy.  A score of 5 is the maximum possible high quality score, and we should continue to do more business with Manufacturers with a Product Quality Rating of 4 and above.",
+        "http://example.com/dell-bom/terms/reasoningLogic": "The sum of the Material Price for the Materials in a Product as defined by the Bill of Materials record for that Product",
+        "rdfs:comment": "The total cost to manufacture the product, based on computing the sum of the cost of the underlying product components",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Manufacturer"
+          "http://example.com/dell-bom/terms/Product"
         ],
-        "rdfs:label": "Product Quality Rating",
+        "rdfs:label": "Product Cost of Goods Sold",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/grossMargin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Product Retail Price and the Product Cost of Goods Sold, divided by the Product Retail Price",
+        "rdfs:comment": "The percentage profit income for the product sold, based on the difference between the manufacturer's suggested retail price and its cost of goods sold.  This represents the markup percentage between the Retail Price and the Cost of Goods sold.  The higher the number, the more net income can be generated and the higher the company's financial performance",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Gross Margin",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/hasLowestCostAlternativeMaterialNumber",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "Select identifier of the Material with the lowest Material Price for the Material Class ",
+        "rdfs:comment": "The material identifier of the lowest possible alternative option for each Material Class.  If the material identifier is empty, this means that the material selected is the lowest costing material based on current warehouse inventory availability",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/BillOfMaterials"
+        ],
+        "rdfs:label": "has Lowest Cost Alternative Material Number",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/hasManufacturer",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The identifier of the Manufacturer that produces the Material.  The authoritative source of the Manufacturer information is the Vendor Management System",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Material"
+        ],
+        "rdfs:label": "has Manufacturer",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/Manufacturer"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/marginImprovement",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The Potential Cost Savings Per Product divided by the Product Cost of Goods Sold",
+        "rdfs:comment": "The percentage margin improvement based on comparing the potential cost save versus the current product cost.  This describes the opportunity if the lowest cost materials based on stock availability were included in the assembly.",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Margin Improvement",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/minimumPotentialCost",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The sum of the Min Alternate Material Unit Price for the Materials in a Product as defined by the Bill of Materials record for that Product",
+        "rdfs:comment": "An alternative Product Cost of Goods Sold if we substituted all of the materials that make up the product assembly with the lowest possible option based on looking at parts in the inventory.  This is determined by identifying the lowest cost material option for each class of material defined for the product in the Bill of Materials",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Minimum Potential Cost",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/productRetailPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The suggested manufacturer's retail price for the the product.  This is the price at which the product is to be sold across retail and distribution channels to end customers.",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Product Retail Price",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -205,45 +282,101 @@
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/materialClassDescription",
+        "@id": "http://example.com/dell-bom/terms/attributeAbbreviation",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The description associated to each Material Class, from the Material Class Taxonomy",
+        "rdfs:comment": "An abbreviation or code that appears in the Material Description for each individual instance that helps identify the characteristic from within the Description.  For example, if the Material Description for an individual Material includes the phrase \"PN: 12345\", then this means that the Material has a Part Number of 12345, because \"PN\" is the appreviation for \"Part Number.\"",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/MaterialClass"
+          "http://example.com/dell-bom/terms/MaterialFeature"
         ],
-        "rdfs:label": "Material Class Description",
+        "rdfs:label": "Attribute Abbreviation",
         "rdfs:range": [
           "xsd:string"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/productCostOfGoodsSold",
+        "@id": "http://example.com/dell-bom/terms/lowestCostAlternativeMaterialNumber",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The sum of the Material Price for the Materials in a Product as defined by the Bill of Materials record for that Product",
-        "rdfs:comment": "The total cost to manufacture the product, based on computing the sum of the cost of the underlying product components",
+        "http://example.com/dell-bom/terms/reasoningLogic": "Select identifier of the Material with the lowest Material Price for the Material Class ",
+        "rdfs:comment": "The material identifier of the lowest possible alternative option for each Material Class.  If the material identifier is empty, this means that the material selected is the lowest costing material based on current warehouse inventory availability",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
+          "http://example.com/dell-bom/terms/Material"
         ],
-        "rdfs:label": "Product Cost of Goods Sold",
+        "rdfs:label": "Lowest Cost Alternative Material Number",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/hasProduct",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The specific product being described by the individual Bill of Materials record",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/BillOfMaterials"
+        ],
+        "rdfs:label": "has Product",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/Product"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/minAlternateMaterialUnitPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "Minimum of Material Price for all Materials within the same Material Class",
+        "rdfs:comment": "The theoretical lowest possible Material Unit Cost based on available alternative materials in warehouse inventory , for each Material Class",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/BillOfMaterials"
+        ],
+        "rdfs:label": "Min Alternate Material Unit Price",
         "rdfs:range": [
           "xsd:decimal"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/totalMaterialPrice",
+        "@id": "http://example.com/dell-bom/terms/warehouseLocation",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The product of the Material Unit Price and the Quantity",
-        "rdfs:comment": "The total cost of the Material, which is the product of the material unit price and the quantity of materials required to assemble the product",
+        "rdfs:comment": "The location of the Warehouse, Storage Facility or Assembly Plant where the inventory is being tracked",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/BillOfMaterials"
+          "http://example.com/dell-bom/terms/WarehouseInventory"
         ],
-        "rdfs:label": "Total Material Price",
+        "rdfs:label": "Warehouse Location",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ontimeDeliveryRating",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The ontime delivery quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product ontime delivery, meaning that shipments are consistently delayed and that the vendor does not have a good track record of inventory control and logistics management.  The Product Manager must perform a Supplier Risk Review within the calendar quarter as outlined in the Supplier Risk Management policy.  A score of 5 is the maximum possible high delivery rating, and we should continue to do more business with Manufacturers with an Ontime Delivery Rating of 4 and above.",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Manufacturer"
+        ],
+        "rdfs:label": "Ontime Delivery Rating",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/estCompetitorCost",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "Estimated average Cost of Goods Sold for competitor products, based on market research performed by the Market Intelligence team.  The goal is to get an understanding of competitive market components and margins, to see if there are opportunities to optimize the Product's Bill of Materials.",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Est. Competitor Cost",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -277,60 +410,15 @@
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/estCompetitorMargin",
+        "@id": "http://example.com/dell-bom/terms/productQualityRating",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Est. Competitor Cost, divided by the Competitor Retail Price",
-        "rdfs:comment": "The percentage profit income for the equivalent competitve product sold.  The idea is to be able to compare the equivalent competitive product's margins to our company.  If a competitive product has a lower retail price, but a higher comparable Gross Margin, then there are significant opportunities to improve the Product's Bill of Materials",
+        "rdfs:comment": "The product quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product quality, and the Product Manager must perform a Supplier Risk Review within the calendar quarter as outlined in the Supplier Risk Management policy.  A score of 5 is the maximum possible high quality score, and we should continue to do more business with Manufacturers with a Product Quality Rating of 4 and above.",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
+          "http://example.com/dell-bom/terms/Manufacturer"
         ],
-        "rdfs:label": "Est. Competitor Margin",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/warehouseLocation",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The location of the Warehouse, Storage Facility or Assembly Plant where the inventory is being tracked",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Warehouse Location",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/minimumPotentialCost",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The sum of the Min Alternate Material Unit Price for the Materials in a Product as defined by the Bill of Materials record for that Product",
-        "rdfs:comment": "An alternative Product Cost of Goods Sold if we substituted all of the materials that make up the product assembly with the lowest possible option based on looking at parts in the inventory.  This is determined by identifying the lowest cost material option for each class of material defined for the product in the Bill of Materials",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Minimum Potential Cost",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/potentialCostSavingsPerProduct",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Product Retail Price and the Minimum Retail Price at the Optimal Gross Margin",
-        "rdfs:comment": "The theoretical price differential between the current Product Retail Price and the theoretical most efficient price if the lowest possible cost product was delivered at the highest margin that the market can afford.",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Potential Cost Savings Per Product",
+        "rdfs:label": "Product Quality Rating",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -351,88 +439,116 @@
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/lowestCostAlternativeMaterialNumber",
+        "@id": "http://example.com/dell-bom/terms/minMaterialUnitPrice",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "Select identifier of the Material with the lowest Material Price for the Material Class ",
-        "rdfs:comment": "The material identifier of the lowest possible alternative option for each Material Class.  If the material identifier is empty, this means that the material selected is the lowest costing material based on current warehouse inventory availability",
+        "http://example.com/dell-bom/terms/reasoningLogic": "Minimum of Material Price for all Materials within the same Material Class",
+        "rdfs:comment": "The lowest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
         "rdfs:domain": [
           "http://example.com/dell-bom/terms/Material"
         ],
-        "rdfs:label": "Lowest Cost Alternative Material Number",
+        "rdfs:label": "Min Material Unit Price",
         "rdfs:range": [
-          "http://example.com/dell-bom/terms/Material"
+          "xsd:decimal"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/beforeAfter",
+        "@id": "http://example.com/dell-bom/terms/materialName",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "Whether the abbreviation code typically appears before or after the characteristic value when it appears in the instance of the Material Description.  For example, the Part Number abbreviation tends to appear before the value in a Material Description (e.g., \"PN: 12345\").  However the abbreviation for the number of components usually comes after the presence of the value in the description (e.g., \"8 COMP\")",
+        "rdfs:comment": "The name of the Material.",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/MaterialFeature"
+          "http://example.com/dell-bom/terms/Material"
         ],
-        "rdfs:label": "Before / After",
+        "rdfs:label": "Material Name",
         "rdfs:range": [
           "xsd:string"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/estCompetitorCost",
+        "@id": "http://example.com/dell-bom/terms/asOfDate",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "Estimated average Cost of Goods Sold for competitor products, based on market research performed by the Market Intelligence team.  The goal is to get an understanding of competitive market components and margins, to see if there are opportunities to optimize the Product's Bill of Materials.",
+        "rdfs:comment": "The date as of when the inventory was tracked and last modified",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
+          "http://example.com/dell-bom/terms/WarehouseInventory"
         ],
-        "rdfs:label": "Est. Competitor Cost",
+        "rdfs:label": "As of Date",
         "rdfs:range": [
-          "xsd:decimal"
+          "xsd:date"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/marginImprovement",
+        "@id": "http://example.com/dell-bom/terms/inventoryStatus",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The Potential Cost Savings Per Product divided by the Product Cost of Goods Sold",
-        "rdfs:comment": "The percentage margin improvement based on comparing the potential cost save versus the current product cost.  This describes the opportunity if the lowest cost materials based on stock availability were included in the assembly.",
+        "rdfs:comment": "A statement as to whether the inventory supply for the Material within the Warehouse location is adequate given required batch manufacturing processes.  An Inventory Status of \"At Risk\" means that there is not sufficient inventory to assemble the product and the current batch and subsequent batches may be at risk of being assembled and shipped on time.  An Inventory Status of \"Approaching Risk\" means that inventory supply is reaching the risk threshold, but there is adequate time to manage the procurement process to replenish stock before there are impacts to production assembly lines.  An Inventory Status of \"In Stock\" means that there is adequate supply of inventory within the Warehouse location.  Finally, an Inventory Status of \"Overstock\" means that there is too much capacity for that material in inventory and speaks to either poor demand management processes, assembly line operational issues where batches are not being produced at the expected efficiency rate, or delays in entire assembly lines due to other potential materials being out of supply.",
         "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
+          "http://example.com/dell-bom/terms/WarehouseInventory"
         ],
-        "rdfs:label": "Margin Improvement",
+        "rdfs:label": "Inventory Status",
         "rdfs:range": [
-          "xsd:decimal"
+          "xsd:string"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/maxMaterialUnitPrice",
+        "@id": "http://example.com/dell-bom/terms/totalMaterialPrice",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "Maximum of Material Price for all Materials within the same Material Class",
-        "rdfs:comment": "The highest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Material"
-        ],
-        "rdfs:label": "Max Material Unit Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/minimumAlternatePrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The theoretical lowest possible total cost of the Material Class, based on multiplying the Minimum alternate material unit price by the quantity",
+        "http://example.com/dell-bom/terms/reasoningLogic": "The product of the Material Unit Price and the Quantity",
+        "rdfs:comment": "The total cost of the Material, which is the product of the material unit price and the quantity of materials required to assemble the product",
         "rdfs:domain": [
           "http://example.com/dell-bom/terms/BillOfMaterials"
         ],
-        "rdfs:label": "Minimum Alternate Price",
+        "rdfs:label": "Total Material Price",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/attributeName",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The name of the Feature that describes the expected characteristic or property of a material within the respective Material Class",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/MaterialFeature"
+        ],
+        "rdfs:label": "Attribute Name",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/materialClassDescription",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The description associated to each Material Class, from the Material Class Taxonomy",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/MaterialClass"
+        ],
+        "rdfs:label": "Material Class Description",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/minimumRetailPriceBWCompetitorPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Minimum Retail Price at Optimal Gross Margin",
+        "rdfs:comment": "The difference between the theoretical minimum retail price compared to equivalent competitive product retail price.  The goal is for this number to be higher compared to the B/(W) Competitor Cost",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Minimum Retail Price B/(W) Competitor Price",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -448,6 +564,123 @@
           "http://example.com/dell-bom/terms/Product"
         ],
         "rdfs:label": "B/(W) Competitor Cost",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/potentialCostSavingsPerProduct",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Product Retail Price and the Minimum Retail Price at the Optimal Gross Margin",
+        "rdfs:comment": "The theoretical price differential between the current Product Retail Price and the theoretical most efficient price if the lowest possible cost product was delivered at the highest margin that the market can afford.",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Potential Cost Savings Per Product",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/materialDescription",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The description of the Material, as saved in the ERP and Vendor Management system",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Material"
+        ],
+        "rdfs:label": "Material Description",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/activeSince",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The date when the contract to begin conducting business with the Manufacturer was signed",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Manufacturer"
+        ],
+        "rdfs:label": "Active Since",
+        "rdfs:range": [
+          "xsd:date"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/totalAvailableInventory",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The sum of the Quantity Units Available for the Material across all Warehouse Locations",
+        "rdfs:comment": "The sum of all current in-stock units of the Material across all current Warehouse locations, stoage facilities and assembly plants.  This number is important, as not having enough materials available for assembly could lead to lengthy product delays",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Material"
+        ],
+        "rdfs:label": "Total Available Inventory",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/nextShipmentReceiptDate",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The date when the next shipment of inventory is due from the Manufacturer",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/WarehouseInventory"
+        ],
+        "rdfs:label": "Next Shipment Receipt Date",
+        "rdfs:range": [
+          "xsd:date"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/minimumRetailPriceAtOptimalGrossMargin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The Minimum Potential Cost divided by one minus the higher number between the Gross Margin and the Est. Competitor Margin",
+        "rdfs:comment": "The theoretical most optimal retail price if we modified the Bill of Materials to only select the lowest cost materials and set the retail price at the highest gross margin (based on comparing current versus competitos gross margin).  The retail price could be lower than the current retail price, and can be used to compare to competitor price.  This is especially valuable if the competitor's price is lower and they have a higher operating margin.",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Minimum Retail Price at Optimal Gross Margin",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/estCompetitorMargin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Est. Competitor Cost, divided by the Competitor Retail Price",
+        "rdfs:comment": "The percentage profit income for the equivalent competitve product sold.  The idea is to be able to compare the equivalent competitive product's margins to our company.  If a competitive product has a lower retail price, but a higher comparable Gross Margin, then there are significant opportunities to improve the Product's Bill of Materials",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Product"
+        ],
+        "rdfs:label": "Est. Competitor Margin",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/priceRatioComparedToMax",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Max Material Unit Price and the Material Unit Price, divided by the Material Unit Price",
+        "rdfs:comment": "The ratio of how much less expensive a Material is compared to the highest Material Price unit within that Material Class.  This number is always less than or equal to zero, and the lower the number, the better as this represents that a Material is distant from the maximum theoretical price for that Material Class",
+        "rdfs:domain": [
+          "http://example.com/dell-bom/terms/Material"
+        ],
+        "rdfs:label": "Price Ratio Compared to Max",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -480,239 +713,48 @@
         "rdfs:range": [
           "xsd:decimal"
         ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/productRetailPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The suggested manufacturer's retail price for the the product.  This is the price at which the product is to be sold across retail and distribution channels to end customers.",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Product Retail Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/attributeAbbreviation",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "An abbreviation or code that appears in the Material Description for each individual instance that helps identify the characteristic from within the Description.  For example, if the Material Description for an individual Material includes the phrase \"PN: 12345\", then this means that the Material has a Part Number of 12345, because \"PN\" is the appreviation for \"Part Number.\"",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/MaterialFeature"
-        ],
-        "rdfs:label": "Attribute Abbreviation",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/hasLowestCostAlternativeMaterialNumber",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "Select identifier of the Material with the lowest Material Price for the Material Class ",
-        "rdfs:comment": "The material identifier of the lowest possible alternative option for each Material Class.  If the material identifier is empty, this means that the material selected is the lowest costing material based on current warehouse inventory availability",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/BillOfMaterials"
-        ],
-        "rdfs:label": "has Lowest Cost Alternative Material Number",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/productName",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The trade name of the product as it is sold across retail channels",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Product Name",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/totalAvailableInventory",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The sum of the Quantity Units Available for the Material across all Warehouse Locations",
-        "rdfs:comment": "The sum of all current in-stock units of the Material across all current Warehouse locations, stoage facilities and assembly plants.  This number is important, as not having enough materials available for assembly could lead to lengthy product delays",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Material"
-        ],
-        "rdfs:label": "Total Available Inventory",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/asOfDate",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The date as of when the inventory was tracked and last modified",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "As of Date",
-        "rdfs:range": [
-          "xsd:date"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/minMaterialUnitPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "Minimum of Material Price for all Materials within the same Material Class",
-        "rdfs:comment": "The lowest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Material"
-        ],
-        "rdfs:label": "Min Material Unit Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/attributeName",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The name of the Feature that describes the expected characteristic or property of a material within the respective Material Class",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/MaterialFeature"
-        ],
-        "rdfs:label": "Attribute Name",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/grossMargin",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Product Retail Price and the Product Cost of Goods Sold, divided by the Product Retail Price",
-        "rdfs:comment": "The percentage profit income for the product sold, based on the difference between the manufacturer's suggested retail price and its cost of goods sold.  This represents the markup percentage between the Retail Price and the Cost of Goods sold.  The higher the number, the more net income can be generated and the higher the company's financial performance",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Gross Margin",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/bWCompetitorMargins",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The difference between the Gross Margin and the Est Competitor Margins",
-        "rdfs:comment": "The difference between the product Gross Margin and the estimated equivalent competitive product margin.  The higher the number, the lower our cost to deliver the product compared to the competitors in the marketplace.  The lower the number, the more expensive it is to produce the product compared to the competition.  Typically, the lowest performing products that need to be optimized are the ones with a high negative competitive ratio and a negative better than (b) / worse than (w) competitor margin",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "B/(W) Competitor Margins",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/minimumRetailPriceAtOptimalGrossMargin",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/dell-bom/terms/reasoningLogic": "The Minimum Potential Cost divided by one minus the higher number between the Gross Margin and the Est. Competitor Margin",
-        "rdfs:comment": "The theoretical most optimal retail price if we modified the Bill of Materials to only select the lowest cost materials and set the retail price at the highest gross margin (based on comparing current versus competitos gross margin).  The retail price could be lower than the current retail price, and can be used to compare to competitor price.  This is especially valuable if the competitor's price is lower and they have a higher operating margin.",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Product"
-        ],
-        "rdfs:label": "Minimum Retail Price at Optimal Gross Margin",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/inventoryStatus",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "A statement as to whether the inventory supply for the Material within the Warehouse location is adequate given required batch manufacturing processes.  An Inventory Status of \"At Risk\" means that there is not sufficient inventory to assemble the product and the current batch and subsequent batches may be at risk of being assembled and shipped on time.  An Inventory Status of \"Approaching Risk\" means that inventory supply is reaching the risk threshold, but there is adequate time to manage the procurement process to replenish stock before there are impacts to production assembly lines.  An Inventory Status of \"In Stock\" means that there is adequate supply of inventory within the Warehouse location.  Finally, an Inventory Status of \"Overstock\" means that there is too much capacity for that material in inventory and speaks to either poor demand management processes, assembly line operational issues where batches are not being produced at the expected efficiency rate, or delays in entire assembly lines due to other potential materials being out of supply.",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Inventory Status",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/quantityUnitsAvailable",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The total number of units available at the Warehouse Location for that Material",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Quantity Units Available",
-        "rdfs:range": [
-          "xsd:integer"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/ontimeDeliveryRating",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The ontime delivery quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product ontime delivery, meaning that shipments are consistently delayed and that the vendor does not have a good track record of inventory control and logistics management.  The Product Manager must perform a Supplier Risk Review within the calendar quarter as outlined in the Supplier Risk Management policy.  A score of 5 is the maximum possible high delivery rating, and we should continue to do more business with Manufacturers with an Ontime Delivery Rating of 4 and above.",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Manufacturer"
-        ],
-        "rdfs:label": "Ontime Delivery Rating",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/materialUnitPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The unit cost of the Material.  If the Material Class is an OEM component, then this is the purchase price of the Material from the Manufacturer.  If this is a non-OEM component, then this is the internal calculated cost to internally source",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Material"
-        ],
-        "rdfs:label": "Material Unit Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/dell-bom/terms/hasManufacturer",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The identifier of the Manufacturer that produces the Material.  The authoritative source of the Manufacturer information is the Vendor Management System",
-        "rdfs:domain": [
-          "http://example.com/dell-bom/terms/Material"
-        ],
-        "rdfs:label": "has Manufacturer",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/Manufacturer"
-        ]
       }
     ],
     "classes": [
+      {
+        "@id": "http://example.com/dell-bom/terms/MaterialClass",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "A category or grouping used to classify different components based on shared characteristics, like material type, function, or supplier, which helps organize and manage the BOM by allowing for easier identification and filtering of specific parts within the product assembly; essentially, it's a way to categorize materials within the BOM for better management and analysis.",
+        "rdfs:label": "Material Class",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/category",
+          "http://example.com/dell-bom/terms/materialClassDescription",
+          "http://example.com/dell-bom/terms/materialClassName"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SecuritySoftware",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "For threat detection and prevention",
+        "rdfs:label": "Security Software",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/DriveMechanism",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Handles the operation of the tape drive",
+        "rdfs:label": "Drive Mechanism",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
       {
         "@id": "http://example.com/dell-bom/terms/MaterialFeature",
         "@type": [
@@ -724,6 +766,853 @@
           "http://example.com/dell-bom/terms/attributeAbbreviation",
           "http://example.com/dell-bom/terms/attributeName",
           "http://example.com/dell-bom/terms/beforeAfter"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/DRAMCache",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Temporary storage used to increase the speed of data access and improve SSD performance",
+        "rdfs:label": "DRAM Cache",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/DisplayPanel",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For monitoring UPS status",
+        "rdfs:label": "Display Panel",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ChassisSmallComponentEnclosure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Enclosure housing for micro components",
+        "rdfs:label": "Chassis (Small Component Enclosure)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/CableSleeves",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For protecting the fiber cables",
+        "rdfs:label": "Cable Sleeves",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ConnectorSATAOrNVMe",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Interface connector that allows the SSD to connect to the computer or server",
+        "rdfs:label": "Connector (SATA or NVMe)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/MountingKit",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For installation of the monitor",
+        "rdfs:label": "Mounting Kit",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SATASASCables",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For connecting the HBA to the drives",
+        "rdfs:label": "SATA/SAS Cables",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ChassisNASEnclosure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "The protective casing that houses all the NAS components, designed for rack mounting or desktop use",
+        "rdfs:label": "Chassis (NAS Enclosure)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/StorageDrives500GBSSD",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Used for fast storage in the compute node",
+        "rdfs:label": "Storage Drives (500GB SSD)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/CableManagementSystem",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For organizing and routing cables",
+        "rdfs:label": "Cable Management System",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/RAM32GBDDR4",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Sufficient memory to ensure smooth operation for database management, virtualization, and other heavy workloads. Multiple RAM sticks are included to ensure proper scalability.",
+        "rdfs:label": "RAM (32GB DDR4)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/RouterHardware",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For routing data between networks",
+        "rdfs:label": "Router Hardware",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/CableManagementKit",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Keeps cables organized and allows for better airflow.",
+        "rdfs:label": "Cable Management Kit",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/DualProcessorXeonOrAMD",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "High-performance processor for data center applications",
+        "rdfs:label": "Dual Processor (Xeon or AMD)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Material",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "A raw material, part, subassembly, or component that is required to build a product",
+        "rdfs:label": "Material",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/hasManufacturer",
+          "http://example.com/dell-bom/terms/lowestCostAlternativeMaterialNumber",
+          "http://example.com/dell-bom/terms/materialDescription",
+          "http://example.com/dell-bom/terms/materialName",
+          "http://example.com/dell-bom/terms/materialUnitPrice",
+          "http://example.com/dell-bom/terms/maxMaterialUnitPrice",
+          "http://example.com/dell-bom/terms/minMaterialUnitPrice",
+          "http://example.com/dell-bom/terms/priceRatioComparedToMax",
+          "http://example.com/dell-bom/terms/priceRatioComparedToMin",
+          "http://example.com/dell-bom/terms/totalAvailableInventory"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/PowerDistributionUnitPDU",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For distributing power to mounted servers",
+        "rdfs:label": "Power Distribution Unit (PDU)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/FiberCableOM4",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "High-speed data transmission cable for long-distance",
+        "rdfs:label": "Fiber Cable (OM4)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Motherboard",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "The main circuit board that connects all the internal components of the server.",
+        "rdfs:label": "Motherboard",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/PCIeSlot",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Interface for the GPU to connect to the server",
+        "rdfs:label": "PCIe Slot",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/PowerLossProtectionCapacitor",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Ensures data integrity during power failure by providing backup power for a short time",
+        "rdfs:label": "Power Loss Protection Capacitor",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SSDStorage1TB",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "For high-speed storage",
+        "rdfs:label": "SSD Storage (1TB)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/AccessManagementSystem",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Software for controlling access to cloud storage",
+        "rdfs:label": "Access Management System",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Connectors",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For connecting fiber cables to equipment",
+        "rdfs:label": "Connectors",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/DriveController",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Manages data reading/writing on the drive",
+        "rdfs:label": "Drive Controller",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/MagneticTapeCartridges",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For storing archived data",
+        "rdfs:label": "Magnetic Tape Cartridges",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Enclosure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Protective housing for the internal components",
+        "rdfs:label": "Enclosure",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/LEDIndicators",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "LED lights on the front panel indicating system status, disk activity and network connection",
+        "rdfs:label": "LED Indicators",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SecurityLockOptional",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Physical lock mechanism to secure the NAS system in a rack or on-site",
+        "rdfs:label": "Security Lock (optional)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/CoolingFan",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "rdfs:label": "Cooling Fan",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/OperatingSystemEGWindowsServer",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "The software that the server runs, enabling it to perform its functions.",
+        "rdfs:label": "Operating System (e.g., Windows Server)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ChassisChipEnclosure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Physical housing for the chip and motherboard components",
+        "rdfs:label": "Chassis (Chip Enclosure)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/BackupAndRecoverySystem",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Ensures data recovery and redundancy",
+        "rdfs:label": "Backup and Recovery System",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/CPUDualCore",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Processor that handles the computation and data management tasks for the NAS",
+        "rdfs:label": "CPU (Dual-core)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SSDStorageDrive512GB",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Fast storage options like SSDs are included for the operating system and critical applications.",
+        "rdfs:label": "SSD Storage Drive (512GB)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Chassis42URackmountEnclosure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "The physical case that houses all the server’s internal components. The 42U size is standard for rackmount servers.",
+        "rdfs:label": "Chassis (42U Rackmount Enclosure)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/PowerSupplyUnit",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For stable power to all components",
+        "rdfs:label": "Power Supply Unit",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/StorageNodes",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Server units housing storage disks",
+        "rdfs:label": "Storage Nodes",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/TapeDrive",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Used to read/write data onto magnetic tapes",
+        "rdfs:label": "Tape Drive",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Inverter",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Converts DC to AC when utility power fails",
+        "rdfs:label": "Inverter",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/LCDMonitor24Inch",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For visualizing server management information",
+        "rdfs:label": "LCD Monitor (24-inch)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Manufacturer",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The company or entity that produces a specific component listed in the BOM, essentially identifying the source of that part within the product assembly; it provides information about who made the part, allowing for sourcing and potential supplier management.",
+        "rdfs:label": "Manufacturer",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/activeSince",
+          "http://example.com/dell-bom/terms/manufacturerName",
+          "http://example.com/dell-bom/terms/ontimeDeliveryRating",
+          "http://example.com/dell-bom/terms/productQualityRating"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/RAIDController",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "rdfs:label": "RAID Controller",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/RAM64GBDDR4",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Memory for data processing and management",
+        "rdfs:label": "RAM (64GB DDR4)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SASHBA",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Interface card for connecting servers to SAS storage devices",
+        "rdfs:label": "SAS HBA",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SATACables",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Used for connecting the hard drives to the motherboard or RAID controller",
+        "rdfs:label": "SATA Cables",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/DVDDrive",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "For system installation or data backups.",
+        "rdfs:label": "DVD Drive",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ServerHardwareCPURAMStorage",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Physical hardware on which VMware runs",
+        "rdfs:label": "Server Hardware (CPU/RAM/Storage)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/HeatSink",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Used to dissipate heat generated by the processor",
+        "rdfs:label": "Heat Sink",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ExternalPowerAdapter",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For models that require external power for backup or remote access functionality",
+        "rdfs:label": "External Power Adapter",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/WarehouseInventory",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The availability of product materials within either the storage warehouse location, or the assembly plant.  The material availability and its distance to the assembly plant can help determine how quickly more product can be made available to the marketplace.",
+        "rdfs:label": "Warehouse Inventory",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/asOfDate",
+          "http://example.com/dell-bom/terms/hasMaterial",
+          "http://example.com/dell-bom/terms/inventoryStatus",
+          "http://example.com/dell-bom/terms/nextShipmentReceiptDate",
+          "http://example.com/dell-bom/terms/quantityUnitsAvailable",
+          "http://example.com/dell-bom/terms/warehouseLocation"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/UPSBatteryModules",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Backup battery modules for the UPS",
+        "rdfs:label": "UPS Battery Modules",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/SwitchingFabric",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Manages data traffic between devices",
+        "rdfs:label": "Switching Fabric",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/NetworkPorts",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "48 ports for LAN connectivity",
+        "rdfs:label": "Network Ports",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Controller",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Manages data read/write operations and the communication between the NAND flash memory and host computer",
+        "rdfs:label": "Controller",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/NetworkInterfaceCardGigabitEthernet",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Interface card for network connectivity",
+        "rdfs:label": "Network Interface Card (Gigabit Ethernet)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ThermalPadOrHeatSink",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Used to dissipate heat generated during the operation of the SSD",
+        "rdfs:label": "Thermal Pad or Heat Sink",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/HardDiskDriveHDD2TB",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "High-capacity storage drive for data centers",
+        "rdfs:label": "Hard Disk Drive (HDD 2TB)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/VirtualizationSoftware",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Virtualization platform for running multiple virtual machines",
+        "rdfs:label": "Virtualization Software",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/ManagementInterface",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For configuring and monitoring the switch",
+        "rdfs:label": "Management Interface",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/Rails",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For installing servers in the rack",
+        "rdfs:label": "Rails",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/USBPortsConnectors",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For connecting external drives or devices for additional storage or backups",
+        "rdfs:label": "USB Ports/Connectors",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/BatteryBackupUnitBBU",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Provides power to the server in case of power failure, ensuring no data loss.",
+        "rdfs:label": "Battery Backup Unit (BBU)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/BillOfMaterials",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The list of the raw materials, sub-assemblies, intermediate assemblies, sub-components, parts, and the quantities of each needed to manufacture an end product. ",
+        "rdfs:label": "Bill of Materials",
+        "rdfs:range": [
+          "http://example.com/dell-bom/terms/hasLowestCostAlternativeMaterialNumber",
+          "http://example.com/dell-bom/terms/hasMaterial",
+          "http://example.com/dell-bom/terms/hasProduct",
+          "http://example.com/dell-bom/terms/minAlternateMaterialUnitPrice",
+          "http://example.com/dell-bom/terms/minimumAlternatePrice",
+          "http://example.com/dell-bom/terms/quantity",
+          "http://example.com/dell-bom/terms/totalMaterialPrice"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/GraphicsProcessingUnitGPU",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "For accelerating machine learning and AI tasks",
+        "rdfs:label": "Graphics Processing Unit (GPU)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
         ]
       },
       {
@@ -753,83 +1642,159 @@
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/MaterialClass",
+        "@id": "http://example.com/dell-bom/terms/Firmware",
         "@type": [
           "rdfs:Class"
         ],
-        "rdfs:comment": "A category or grouping used to classify different components based on shared characteristics, like material type, function, or supplier, which helps organize and manage the BOM by allowing for easier identification and filtering of specific parts within the product assembly; essentially, it's a way to categorize materials within the BOM for better management and analysis.",
-        "rdfs:label": "Material Class",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/category",
-          "http://example.com/dell-bom/terms/materialClassDescription",
-          "http://example.com/dell-bom/terms/materialClassName"
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Software stored on the SSD that controls its operation",
+        "rdfs:label": "Firmware",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/Material",
+        "@id": "http://example.com/dell-bom/terms/PCBPrintedCircuitBoard",
         "@type": [
           "rdfs:Class"
         ],
-        "rdfs:comment": "A raw material, part, subassembly, or component that is required to build a product",
-        "rdfs:label": "Material",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/hasManufacturer",
-          "http://example.com/dell-bom/terms/lowestCostAlternativeMaterialNumber",
-          "http://example.com/dell-bom/terms/materialDescription",
-          "http://example.com/dell-bom/terms/materialName",
-          "http://example.com/dell-bom/terms/materialUnitPrice",
-          "http://example.com/dell-bom/terms/maxMaterialUnitPrice",
-          "http://example.com/dell-bom/terms/minMaterialUnitPrice",
-          "http://example.com/dell-bom/terms/priceRatioComparedToMax",
-          "http://example.com/dell-bom/terms/priceRatioComparedToMin",
-          "http://example.com/dell-bom/terms/totalAvailableInventory"
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "The board that connects and supports all the internal components of the SSD",
+        "rdfs:label": "PCB (Printed Circuit Board)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/WarehouseInventory",
+        "@id": "http://example.com/dell-bom/terms/InternalWiring",
         "@type": [
           "rdfs:Class"
         ],
-        "rdfs:comment": "The availability of product materials within either the storage warehouse location, or the assembly plant.  The material availability and its distance to the assembly plant can help determine how quickly more product can be made available to the marketplace.",
-        "rdfs:label": "Warehouse Inventory",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/asOfDate",
-          "http://example.com/dell-bom/terms/hasMaterial",
-          "http://example.com/dell-bom/terms/inventoryStatus",
-          "http://example.com/dell-bom/terms/nextShipmentReceiptDate",
-          "http://example.com/dell-bom/terms/quantityUnitsAvailable",
-          "http://example.com/dell-bom/terms/warehouseLocation"
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
+        "rdfs:label": "Internal Wiring",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/BillOfMaterials",
+        "@id": "http://example.com/dell-bom/terms/FirewallApplianceHardware",
         "@type": [
           "rdfs:Class"
         ],
-        "rdfs:comment": "The list of the raw materials, sub-assemblies, intermediate assemblies, sub-components, parts, and the quantities of each needed to manufacture an end product. ",
-        "rdfs:label": "Bill of Materials",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/hasLowestCostAlternativeMaterialNumber",
-          "http://example.com/dell-bom/terms/hasMaterial",
-          "http://example.com/dell-bom/terms/hasProduct",
-          "http://example.com/dell-bom/terms/minAlternateMaterialUnitPrice",
-          "http://example.com/dell-bom/terms/minimumAlternatePrice",
-          "http://example.com/dell-bom/terms/quantity",
-          "http://example.com/dell-bom/terms/totalMaterialPrice"
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "For protecting the network from cyber threats",
+        "rdfs:label": "Firewall Appliance Hardware",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/dell-bom/terms/Manufacturer",
+        "@id": "http://example.com/dell-bom/terms/FrontPanelControlButtons",
         "@type": [
           "rdfs:Class"
         ],
-        "rdfs:comment": "The company or entity that produces a specific component listed in the BOM, essentially identifying the source of that part within the product assembly; it provides information about who made the part, allowing for sourcing and potential supplier management.",
-        "rdfs:label": "Manufacturer",
-        "rdfs:range": [
-          "http://example.com/dell-bom/terms/activeSince",
-          "http://example.com/dell-bom/terms/manufacturerName",
-          "http://example.com/dell-bom/terms/ontimeDeliveryRating",
-          "http://example.com/dell-bom/terms/productQualityRating"
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Used for system management, status indicators, and user interaction",
+        "rdfs:label": "Front Panel Control Buttons",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/NANDFlashMemory",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Non-volatile memory used to store data in SSDs",
+        "rdfs:label": "NAND Flash Memory",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/OperatingSystemNASOS",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Embedded software that allows the NAS to function, enabling file sharing, RAID management, and remote access",
+        "rdfs:label": "Operating System (NAS OS)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/RackmountRails",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Allow the server to be mounted into a standard 19\" rack.",
+        "rdfs:label": "Rackmount Rails",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/RAM4GBDDR4",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Memory module used to temporarily store data and improve performance",
+        "rdfs:label": "RAM (4GB DDR4)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/LabelSticker",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "Branding and specification information",
+        "rdfs:label": "Label/Sticker",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/CloudStorageInfrastructure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "Non-OEM",
+        "rdfs:comment": "Remote data storage servers",
+        "rdfs:label": "Cloud Storage Infrastructure",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/dell-bom/terms/StorageDrives",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/dell-bom/terms/category": "OEM",
+        "rdfs:comment": "For use in the RAID array",
+        "rdfs:label": "Storage Drives",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/dell-bom/terms/Material"
         ]
       }
     ]

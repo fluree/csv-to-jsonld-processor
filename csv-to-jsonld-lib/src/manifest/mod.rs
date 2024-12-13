@@ -1,14 +1,92 @@
+use crate::contains_variant;
 use crate::error::ProcessorError;
 use crate::types::{ColumnOverride, ExtraItem};
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer};
+use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
+pub enum ModelStep {
+    BasicVocabularyStep,
+    SubClassVocabularyStep,
+    PropertiesVocabularyStep,
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+pub enum InstanceStep {
+    BasicInstanceStep,
+    SubClassInstanceStep,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
+pub enum StepType {
+    CSVImportStep,
+    ModelStep(ModelStep),
+    InstanceStep(InstanceStep),
+}
+
+impl<'de> Deserialize<'de> for StepType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct StepTypeVisitor;
+
+        impl<'de> Visitor<'de> for StepTypeVisitor {
+            type Value = StepType;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a valid StepType string")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                match value {
+                    "CSVImportStep" => Ok(StepType::CSVImportStep),
+                    "BasicVocabularyStep" => {
+                        Ok(StepType::ModelStep(ModelStep::BasicVocabularyStep))
+                    }
+                    "SubClassVocabularyStep" => {
+                        Ok(StepType::ModelStep(ModelStep::SubClassVocabularyStep))
+                    }
+                    "PropertiesVocabularyStep" => {
+                        Ok(StepType::ModelStep(ModelStep::PropertiesVocabularyStep))
+                    }
+                    "BasicInstanceStep" => {
+                        Ok(StepType::InstanceStep(InstanceStep::BasicInstanceStep))
+                    }
+                    "SubClassInstanceStep" => {
+                        Ok(StepType::InstanceStep(InstanceStep::SubClassInstanceStep))
+                    }
+                    _ => Err(de::Error::unknown_variant(
+                        value,
+                        &[
+                            "CSVImportStep",
+                            "BasicVocabularyStep",
+                            "SubClassVocabularyStep",
+                            "BasicInstanceStep",
+                            "SubClassInstanceStep",
+                        ],
+                    )),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(StepTypeVisitor)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ImportStep {
     pub path: String,
     #[serde(rename = "@type")]
-    pub types: Vec<String>,
+    pub types: Vec<StepType>,
     #[serde(default)]
     pub overrides: Vec<ColumnOverride>,
     #[serde(default, rename = "extraItems")]
@@ -16,9 +94,15 @@ pub struct ImportStep {
     #[serde(default, rename = "instanceType")]
     pub instance_type: String,
     pub ignore: Option<Vec<String>>,
+    #[serde(rename = "replaceIdWith")]
+    pub replace_id_with: Option<String>,
+    // TODO: Need to consider manifest validation, because the following field is required if the types include SubClassVocabularyStep
+    #[serde(rename = "subClassOf")]
+    pub sub_class_of: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ImportSection {
     #[serde(rename = "baseIRI")]
     pub base_iri: String,
@@ -26,7 +110,8 @@ pub struct ImportSection {
     pub sequence: Vec<ImportStep>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Manifest {
     #[serde(rename = "@id")]
     pub id: String,
@@ -61,19 +146,61 @@ impl Manifest {
         }
 
         for step in &self.model.sequence {
-            if !step.types.contains(&"ModelStep".to_string()) {
-                tracing::error!("Invalid model step type: {:?}", step.types);
+            let model_step: Vec<&StepType> = step
+                .types
+                .iter()
+                .filter(|t| matches!(t, StepType::ModelStep(_)))
+                .collect();
+
+            if model_step.is_empty() {
+                tracing::error!("No valid model step type found: {:?}", step.types);
                 return Err(ProcessorError::InvalidManifest(
-                    "Model sequence steps must include ModelStep type".into(),
+                    "Model sequence steps must include ModelStep type: BasicVocabularyStep or SubClassVocabularyStep".into(),
                 ));
+            }
+
+            if model_step.len() > 1 {
+                tracing::error!("Multiple model step types found: {:?}", step.types);
+                return Err(ProcessorError::InvalidManifest(
+                    "Model sequence steps must include only one ModelStep type: BasicVocabularyStep or SubClassVocabularyStep".into(),
+                ));
+            }
+
+            if let StepType::ModelStep(ModelStep::SubClassVocabularyStep) = model_step[0] {
+                if step.sub_class_of.is_none() {
+                    tracing::error!("SubClassVocabularyStep requires subClassOf field");
+                    return Err(ProcessorError::InvalidManifest(
+                        "SubClassVocabularyStep requires subClassOf field".into(),
+                    ));
+                }
             }
         }
 
         for step in &self.instances.sequence {
-            if !step.types.contains(&"InstanceStep".to_string()) {
+            let instance_steps: Vec<&StepType> = step
+                .types
+                .iter()
+                .filter(|t| matches!(t, StepType::InstanceStep(_)))
+                .collect();
+
+            if !contains_variant!(instance_steps, StepType::InstanceStep(_)) {
                 tracing::error!("Invalid instance step type: {:?}", step.types);
                 return Err(ProcessorError::InvalidManifest(
                     "Instance sequence steps must include InstanceStep type".into(),
+                ));
+            }
+
+            if instance_steps.is_empty() {
+                tracing::error!("No valid instance step type found: {:?}", step.types);
+                return Err(ProcessorError::InvalidManifest(
+                    "Instance sequence steps must include InstanceStep type: BasicInstanceStep or SubClassInstanceStep".into(),
+                ));
+            }
+
+            if instance_steps.len() > 1 {
+                tracing::error!("Multiple instance step types found: {:?}", step.types);
+                return Err(ProcessorError::InvalidManifest(
+                    "Instance sequence steps must include only one InstanceStep type: BasicInstanceStep or SubClassInstanceStep".into(),
                 ));
             }
         }

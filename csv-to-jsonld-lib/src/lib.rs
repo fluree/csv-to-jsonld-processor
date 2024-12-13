@@ -8,13 +8,14 @@ mod instance;
 mod manifest;
 mod processor;
 mod types;
+mod utils;
 mod vocabulary;
 
 pub use error::ProcessorError;
-pub use instance::{JsonLdInstance, JsonLdInstances};
+pub use instance::{InstanceManager, JsonLdInstance, JsonLdInstances};
 pub use manifest::{ImportSection, ImportStep, Manifest};
 pub use processor::Processor;
-pub use types::{ColumnOverride, JsonLdContext, JsonLdVocabulary, VocabularyTerm};
+pub use types::{ColumnOverride, JsonLdContext, JsonLdVocabulary, VocabularyMap, VocabularyTerm};
 
 #[cfg(test)]
 mod tests {

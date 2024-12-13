@@ -198,211 +198,47 @@
   },
   "@graph": [
     {
-      "@id": "Q8000-FIREWALL-APPLIANCE",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": 44.0,
-      "B/(W) Competitor Cost": "0.31",
-      "B/(W) Competitor Margins": 6.0,
-      "Competitor Retail Price": "0.30",
-      "Est. Competitor Cost": 800.0,
-      "Est. Competitor Margin": 550.0,
-      "Gross Margin": 528.5,
-      "Margin Improvement": 2.0,
-      "Minimum Potential Cost": "-0.01",
-      "Minimum Retail Price B/(W) Competitor Price": "0.00",
-      "Minimum Retail Price at Optimal Gross Margin": 526.5,
-      "Potential Cost Savings Per Product": 765.82,
-      "Product Cost of Goods Sold": 756.0,
-      "Product Description": "Next-Generation Firewall Appliance",
-      "Product Name": "Q8000-FIREWALL-APPLIANCE",
-      "Product Retail Price": "A security appliance providing network protection against cyber threats, with advanced filtering, VPN support, and real-time threat intelligence."
-    },
-    {
-      "@id": "1016",
+      "@id": "1007",
       "@type": [
         "BillOfMaterials"
       ],
       "Min Alternate Material Unit Price": [
         "For stable power to all components",
-        "For visualizing server management information",
-        "For installation of the monitor"
-      ],
-      "Minimum Alternate Price": [
-        "1"
-      ],
-      "Quantity": [
-        "N5000-LCD-MONITOR"
-      ],
-      "Total Material Price": [
-        "Power Supply Unit",
-        "LCD Monitor (24-inch)",
-        "Mounting Kit"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "3374",
-        "8737",
-        "6324"
-      ],
-      "has Material": [
-        "C823673603",
-        "C793058918",
-        "C712001839"
-      ],
-      "has Product": [
-        "1016"
-      ]
-    },
-    {
-      "@id": "D8000-GPU-ACCELERATOR",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": -250.0,
-      "B/(W) Competitor Cost": "0.33",
-      "B/(W) Competitor Margins": -8.0,
-      "Competitor Retail Price": "0.33",
-      "Est. Competitor Cost": 3000.0,
-      "Est. Competitor Margin": 2000.0,
-      "Gross Margin": 2175.73,
-      "Margin Improvement": 10.88,
-      "Minimum Potential Cost": "0.00",
-      "Minimum Retail Price B/(W) Competitor Price": "0.00",
-      "Minimum Retail Price at Optimal Gross Margin": 2164.85,
-      "Potential Cost Savings Per Product": 3247.28,
-      "Product Cost of Goods Sold": 3250.0,
-      "Product Description": "GPU Compute Accelerator",
-      "Product Name": "D8000-GPU-ACCELERATOR",
-      "Product Retail Price": "A graphics processing unit (GPU) card designed to accelerate machine learning, artificial intelligence, and complex data processing tasks."
-    },
-    {
-      "@id": "N5000-LCD-MONITOR",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": -250.0,
-      "B/(W) Competitor Cost": "0.40",
-      "B/(W) Competitor Margins": -100.0,
-      "Competitor Retail Price": "0.40",
-      "Est. Competitor Cost": 250.0,
-      "Est. Competitor Margin": 150.0,
-      "Gross Margin": 299.4,
-      "Margin Improvement": 58.9,
-      "Minimum Potential Cost": "0.00",
-      "Minimum Retail Price B/(W) Competitor Price": "0.20",
-      "Minimum Retail Price at Optimal Gross Margin": 240.5,
-      "Potential Cost Savings Per Product": 401.64,
-      "Product Cost of Goods Sold": 500.0,
-      "Product Description": "24-inch LCD Monitor for Server Console",
-      "Product Name": "N5000-LCD-MONITOR",
-      "Product Retail Price": "A high-resolution, energy-efficient LCD monitor used for managing server and network equipment, with support for multiple display configurations."
-    },
-    {
-      "@id": "1014",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "Software for controlling access to cloud storage",
-        "Remote data storage servers"
-      ],
-      "Minimum Alternate Price": [
-        "1"
-      ],
-      "Quantity": [
-        "M3000-CLOUD-SERVICE"
-      ],
-      "Total Material Price": [
-        "Cloud Storage Infrastructure",
-        "Access Management System"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "11963",
-        "2119"
-      ],
-      "has Material": [
-        "C717308005",
-        "C858545219"
-      ],
-      "has Product": [
-        "1014"
-      ]
-    },
-    {
-      "@id": "1015",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
+        "The physical case that houses all the server’s internal components.",
         "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "For stable power to all components",
-        "For routing data between networks",
-        "Interface card for network connectivity"
+        "Interface for the GPU to connect to the server",
+        "For accelerating machine learning and AI tasks"
       ],
       "Minimum Alternate Price": [
-        "2",
         "1"
       ],
       "Quantity": [
-        "U4000-EDGE-ROUTER"
+        "D8000-GPU-ACCELERATOR"
       ],
       "Total Material Price": [
         "Power Supply Unit",
+        "PCIe Slot",
         "Cooling Fan",
-        "Network Interface Card (Gigabit Ethernet)",
-        "Router Hardware"
+        "GPU (NVIDIA Tesla)",
+        "Chassis (Chip Enclosure)"
       ],
       "has Lowest Cost Alternative Material Number": [
-        "8737",
-        "13529",
-        "3690",
-        "2117"
+        "3703",
+        "13539",
+        "13534",
+        "6957",
+        "8737"
       ],
       "has Material": [
-        "C573404456",
+        "C612843435",
+        "C705884399",
         "C793058918",
         "C486631144",
-        "C855770764"
+        "C601873609"
       ],
       "has Product": [
-        "1015"
+        "1007"
       ]
-    },
-    {
-      "@id": "1017",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": "Memory for data processing and management",
-      "Minimum Alternate Price": "1",
-      "Quantity": "S6000-MEM-64GB",
-      "Total Material Price": "RAM (64GB DDR4)",
-      "has Lowest Cost Alternative Material Number": "13519",
-      "has Material": "C432465317",
-      "has Product": "1017"
-    },
-    {
-      "@id": "C3000-NAS-04",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": -2500.0,
-      "B/(W) Competitor Cost": "0.35",
-      "B/(W) Competitor Margins": -125.0,
-      "Competitor Retail Price": "0.50",
-      "Est. Competitor Cost": 2000.0,
-      "Est. Competitor Margin": 1300.0,
-      "Gross Margin": 2232.11,
-      "Margin Improvement": 217.32,
-      "Minimum Potential Cost": "0.15",
-      "Minimum Retail Price B/(W) Competitor Price": "0.10",
-      "Minimum Retail Price at Optimal Gross Margin": 2014.79,
-      "Potential Cost Savings Per Product": 4061.88,
-      "Product Cost of Goods Sold": 4500.0,
-      "Product Description": "4-Bay Network-Attached Storage (NAS)",
-      "Product Name": "C3000-NAS-04",
-      "Product Retail Price": "A compact 4-bay NAS system for file storage and sharing in small to medium businesses. Supports multiple RAID configurations and remote access."
     },
     {
       "@id": "1013",
@@ -415,25 +251,25 @@
         "For stable power to all components"
       ],
       "Minimum Alternate Price": [
-        "4",
-        "1"
+        "1",
+        "4"
       ],
       "Quantity": [
         "A2000-SAS-HBA"
       ],
       "Total Material Price": [
-        "Power Supply Unit",
+        "SATA/SAS Cables",
         "SAS HBA",
-        "SATA/SAS Cables"
+        "Power Supply Unit"
       ],
       "has Lowest Cost Alternative Material Number": [
+        "6958",
         "8737",
-        "2155",
-        "6958"
+        "2155"
       ],
       "has Material": [
-        "C793058918",
         "C916580666",
+        "C793058918",
         "C700419190"
       ],
       "has Product": [
@@ -441,26 +277,128 @@
       ]
     },
     {
-      "@id": "Z7000-VSAN-CLUSTER",
+      "@id": "1000",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "Used for system management, status indicators, and user interaction",
+        "Provides power to the server in case of power failure, ensuring no data loss.",
+        "Some enterprise servers use GPUs for hardware-based management or specific workloads.",
+        "Processor that handles the computation and data management tasks for the NAS",
+        "Allow the server to be mounted into a standard 19\" rack.",
+        "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
+        "High-capacity storage drive for data centers",
+        "The main circuit board that connects all the internal components of the server.",
+        "For stable power to all components",
+        "The software that the server runs, enabling it to perform its functions.",
+        "Sufficient memory to ensure smooth operation for database management, virtualization, and other heavy workloads. Multiple RAM sticks are included to ensure proper scalability.",
+        "Fast storage options like SSDs are included for the operating system and critical applications.",
+        "Keeps cables organized and allows for better airflow.",
+        "Used to dissipate heat generated by the processor",
+        "The physical case that houses all the server’s internal components. The 42U size is standard for rackmount servers.",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "Interface card for network connectivity",
+        "For system installation or data backups."
+      ],
+      "Minimum Alternate Price": [
+        "4",
+        "1",
+        "8",
+        "2"
+      ],
+      "Quantity": [
+        "P1000-SERVER-01"
+      ],
+      "Total Material Price": [
+        "Network Interface Card (Gigabit Ethernet)",
+        "Motherboard",
+        "Operating System (e.g., Windows Server)",
+        "CPU (Dual-core)",
+        "DVD Drive",
+        "Cable Management Kit",
+        "Chassis (42U Rackmount Enclosure)",
+        "Battery Backup Unit (BBU)",
+        "Power Supply Unit",
+        "SSD Storage Drive (512GB)",
+        "Internal Wiring",
+        "Cooling Fan",
+        "RAM (32GB DDR4)",
+        "Front Panel Control Buttons",
+        "Hard Disk Drive (HDD 2TB)",
+        "RAID Controller",
+        "Rackmount Rails",
+        "Graphics Processing Unit (GPU) for Management",
+        "Heat Sink"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "6929",
+        "13542",
+        "11834",
+        "2248",
+        "8149",
+        "13523",
+        "5529",
+        "2968",
+        "3705",
+        "2544",
+        "266",
+        "8737",
+        "2966",
+        "6946",
+        "6944",
+        "893",
+        "13516",
+        "2117",
+        "4634"
+      ],
+      "has Material": [
+        "C685907335",
+        "C977854099",
+        "C763234716",
+        "C705884398",
+        "C817769075",
+        "C254694638",
+        "C563400186",
+        "C179192512",
+        "C615848753",
+        "C227418116",
+        "C265906184",
+        "C601873607",
+        "C510385123",
+        "C486631144",
+        "C793058918",
+        "C324586584",
+        "C762909605",
+        "C855770764",
+        "C918246783"
+      ],
+      "has Product": [
+        "1000"
+      ]
+    },
+    {
+      "@id": "P7000-RAID-CONTROLLER",
       "@type": [
         "Product"
       ],
-      "B/(W) Competitive Ratio": 2000.0,
-      "B/(W) Competitor Cost": "0.40",
-      "B/(W) Competitor Margins": 20.0,
-      "Competitor Retail Price": "0.42",
-      "Est. Competitor Cost": 10000.0,
-      "Est. Competitor Margin": 6000.0,
-      "Gross Margin": 4676.55,
-      "Margin Improvement": 69.25,
-      "Minimum Potential Cost": "0.02",
-      "Minimum Retail Price B/(W) Competitor Price": "0.01",
-      "Minimum Retail Price at Optimal Gross Margin": 4607.3,
-      "Potential Cost Savings Per Product": 7881.54,
-      "Product Cost of Goods Sold": 8000.0,
-      "Product Description": "Virtual Storage Area Network (vSAN) Cluster",
-      "Product Name": "Z7000-VSAN-CLUSTER",
-      "Product Retail Price": "A scalable storage solution that integrates compute and storage in a virtualized environment for improved storage management and performance."
+      "B/(W) Competitive Ratio": -212.0,
+      "B/(W) Competitor Cost": "0.38",
+      "B/(W) Competitor Margins": -53.0,
+      "Competitor Retail Price": "0.38",
+      "Est. Competitor Cost": 400.0,
+      "Est. Competitor Margin": 250.0,
+      "Gross Margin": 382.0,
+      "Margin Improvement": 0.0,
+      "Minimum Potential Cost": "0.00",
+      "Minimum Retail Price B/(W) Competitor Price": "0.00",
+      "Minimum Retail Price at Optimal Gross Margin": 382.0,
+      "Potential Cost Savings Per Product": 612.0,
+      "Product Cost of Goods Sold": 612.0,
+      "Product Description": "RAID Controller Card",
+      "Product Name": "P7000-RAID-CONTROLLER",
+      "Product Retail Price": "A RAID (Redundant Array of Independent Disks) controller card that enables multiple hard drives to be configured for data redundancy, speed, or both, in servers and storage arrays."
     },
     {
       "@id": "E9000-RACK-ENCLOSURE",
@@ -485,541 +423,26 @@
       "Product Retail Price": "A 42U server rack designed for housing multiple servers and networking equipment in data centers, providing efficient cooling and cable management."
     },
     {
-      "@id": "R5000-UPS-1KVA",
+      "@id": "Z7000-VSAN-CLUSTER",
       "@type": [
         "Product"
       ],
-      "B/(W) Competitive Ratio": -150.0,
-      "B/(W) Competitor Cost": "0.38",
-      "B/(W) Competitor Margins": -38.0,
-      "Competitor Retail Price": "0.33",
-      "Est. Competitor Cost": 400.0,
-      "Est. Competitor Margin": 250.0,
-      "Gross Margin": 370.85,
-      "Margin Improvement": 29.05,
-      "Minimum Potential Cost": "-0.05",
-      "Minimum Retail Price B/(W) Competitor Price": "0.08",
-      "Minimum Retail Price at Optimal Gross Margin": 341.8,
-      "Potential Cost Savings Per Product": 546.88,
-      "Product Cost of Goods Sold": 550.0,
-      "Product Description": "1kVA Uninterruptible Power Supply (UPS)",
-      "Product Name": "R5000-UPS-1KVA",
-      "Product Retail Price": "A reliable UPS unit that provides backup power for servers and network equipment during power outages, ensuring uninterrupted operations."
-    },
-    {
-      "@id": "1001",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "Manages data read/write operations and the communication between the NAND flash memory and host computer",
-        "Protective housing for the internal components",
-        "Branding and specification information",
-        "Temporary storage used to increase the speed of data access and improve SSD performance",
-        "Ensures data integrity during power failure by providing backup power for a short time",
-        "The board that connects and supports all the internal components of the SSD",
-        "Interface connector that allows the SSD to connect to the computer or server",
-        "Used to dissipate heat generated during the operation of the SSD",
-        "Non-volatile memory used to store data in SSDs"
-      ],
-      "Minimum Alternate Price": [
-        "1"
-      ],
-      "Quantity": [
-        "P2000-SSD-512"
-      ],
-      "Total Material Price": [
-        "Controller",
-        "NAND Flash Memory",
-        "PCB (Printed Circuit Board)",
-        "DRAM Cache",
-        "Thermal Pad or Heat Sink",
-        "Connector (SATA or NVMe)",
-        "Power Loss Protection Capacitor",
-        "Label/Sticker",
-        "Enclosure"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "13514",
-        "2096",
-        "6935",
-        "559",
-        "13536",
-        "5483",
-        "8588",
-        "8235",
-        "302"
-      ],
-      "has Material": [
-        "C512238902",
-        "C330674067",
-        "C200706618",
-        "C991622653",
-        "C631979278",
-        "C289958444",
-        "C293693863",
-        "C299195901",
-        "C324738937"
-      ],
-      "has Product": [
-        "1001"
-      ]
-    },
-    {
-      "@id": "P1000-SERVER-01",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": 1200.0,
-      "B/(W) Competitor Cost": "0.35",
-      "B/(W) Competitor Margins": 15.0,
-      "Competitor Retail Price": "0.34",
-      "Est. Competitor Cost": 8000.0,
-      "Est. Competitor Margin": 5200.0,
-      "Gross Margin": 4483.5,
-      "Margin Improvement": 115.5,
-      "Minimum Potential Cost": "-0.01",
-      "Minimum Retail Price B/(W) Competitor Price": "0.03",
-      "Minimum Retail Price at Optimal Gross Margin": 4368.0,
-      "Potential Cost Savings Per Product": 6720.0,
-      "Product Cost of Goods Sold": 6800.0,
-      "Product Description": "Enterprise Rackmount Server",
-      "Product Name": "P1000-SERVER-01",
-      "Product Retail Price": "A high-performance rack-mounted server designed for heavy-duty computing tasks such as database management, virtualization, and cloud hosting. Includes multiple CPU slots and ample RAM expansion."
-    },
-    {
-      "@id": "1000",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "Interface card for network connectivity",
-        "For system installation or data backups.",
-        "Allow the server to be mounted into a standard 19\" rack.",
-        "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
-        "Sufficient memory to ensure smooth operation for database management, virtualization, and other heavy workloads. Multiple RAM sticks are included to ensure proper scalability.",
-        "Provides power to the server in case of power failure, ensuring no data loss.",
-        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
-        "Used for system management, status indicators, and user interaction",
-        "High-capacity storage drive for data centers",
-        "The software that the server runs, enabling it to perform its functions.",
-        "For stable power to all components",
-        "Processor that handles the computation and data management tasks for the NAS",
-        "Used to dissipate heat generated by the processor",
-        "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "Fast storage options like SSDs are included for the operating system and critical applications.",
-        "Some enterprise servers use GPUs for hardware-based management or specific workloads.",
-        "The main circuit board that connects all the internal components of the server.",
-        "Keeps cables organized and allows for better airflow.",
-        "The physical case that houses all the server’s internal components. The 42U size is standard for rackmount servers."
-      ],
-      "Minimum Alternate Price": [
-        "1",
-        "4",
-        "2",
-        "8"
-      ],
-      "Quantity": [
-        "P1000-SERVER-01"
-      ],
-      "Total Material Price": [
-        "Chassis (42U Rackmount Enclosure)",
-        "Front Panel Control Buttons",
-        "Graphics Processing Unit (GPU) for Management",
-        "RAM (32GB DDR4)",
-        "Motherboard",
-        "CPU (Dual-core)",
-        "Internal Wiring",
-        "DVD Drive",
-        "Operating System (e.g., Windows Server)",
-        "Hard Disk Drive (HDD 2TB)",
-        "Heat Sink",
-        "Network Interface Card (Gigabit Ethernet)",
-        "Battery Backup Unit (BBU)",
-        "SSD Storage Drive (512GB)",
-        "Cable Management Kit",
-        "Cooling Fan",
-        "Rackmount Rails",
-        "RAID Controller",
-        "Power Supply Unit"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "2248",
-        "2544",
-        "893",
-        "5529",
-        "13542",
-        "13516",
-        "6944",
-        "4634",
-        "8149",
-        "8737",
-        "13523",
-        "266",
-        "2966",
-        "2968",
-        "6929",
-        "11834",
-        "3705",
-        "6946",
-        "2117"
-      ],
-      "has Material": [
-        "C615848753",
-        "C227418116",
-        "C601873607",
-        "C486631144",
-        "C265906184",
-        "C817769075",
-        "C793058918",
-        "C254694638",
-        "C918246783",
-        "C705884398",
-        "C179192512",
-        "C762909605",
-        "C763234716",
-        "C510385123",
-        "C977854099",
-        "C685907335",
-        "C563400186",
-        "C324586584",
-        "C855770764"
-      ],
-      "has Product": [
-        "1000"
-      ]
-    },
-    {
-      "@id": "U4000-EDGE-ROUTER",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": -200.0,
-      "B/(W) Competitor Cost": "0.30",
-      "B/(W) Competitor Margins": -40.0,
-      "Competitor Retail Price": "0.31",
-      "Est. Competitor Cost": 500.0,
-      "Est. Competitor Margin": 350.0,
-      "Gross Margin": 484.75,
-      "Margin Improvement": 8.25,
-      "Minimum Potential Cost": "0.01",
-      "Minimum Retail Price B/(W) Competitor Price": "0.02",
-      "Minimum Retail Price at Optimal Gross Margin": 476.5,
-      "Potential Cost Savings Per Product": 688.09,
-      "Product Cost of Goods Sold": 700.0,
-      "Product Description": "Edge Router",
-      "Product Name": "U4000-EDGE-ROUTER",
-      "Product Retail Price": "A router designed for the edge of a network, providing secure and high-speed connectivity for data transfers between the local network and the wider internet."
-    },
-    {
-      "@id": "1006",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "The main circuit board that connects all the internal components of the server.",
-        "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "For stable power to all components",
-        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
-        "Server units housing storage disks",
-        "For high-speed storage",
-        "Interface card for network connectivity",
-        "Memory for data processing and management",
-        "Processor that handles the computation and data management tasks for the NAS"
-      ],
-      "Minimum Alternate Price": [
-        "2",
-        "8",
-        "4",
-        "1",
-        "3",
-        "6"
-      ],
-      "Quantity": [
-        "Z7000-VSAN-CLUSTER"
-      ],
-      "Total Material Price": [
-        "Network Interface Card (Gigabit Ethernet)",
-        "Cooling Fan",
-        "RAID Controller",
-        "RAM (64GB DDR4)",
-        "CPU (Dual-core)",
-        "Motherboard",
-        "Power Supply Unit",
-        "Storage Nodes",
-        "SSD Storage (1TB)"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "3705",
-        "6944",
-        "2968",
-        "2118",
-        "13522",
-        "13530",
-        "6945",
-        "13519",
-        "8737"
-      ],
-      "has Material": [
-        "C265906184",
-        "C918246783",
-        "C521369586",
-        "C432465317",
-        "C179192512",
-        "C486631144",
-        "C793058918",
-        "C855770764",
-        "C938586599"
-      ],
-      "has Product": [
-        "1006"
-      ]
-    },
-    {
-      "@id": "1007",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "For stable power to all components",
-        "For accelerating machine learning and AI tasks",
-        "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "Interface for the GPU to connect to the server",
-        "The physical case that houses all the server’s internal components."
-      ],
-      "Minimum Alternate Price": [
-        "1"
-      ],
-      "Quantity": [
-        "D8000-GPU-ACCELERATOR"
-      ],
-      "Total Material Price": [
-        "Power Supply Unit",
-        "Cooling Fan",
-        "GPU (NVIDIA Tesla)",
-        "PCIe Slot",
-        "Chassis (Chip Enclosure)"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "13534",
-        "8737",
-        "3703",
-        "6957",
-        "13539"
-      ],
-      "has Material": [
-        "C612843435",
-        "C601873609",
-        "C486631144",
-        "C793058918",
-        "C705884399"
-      ],
-      "has Product": [
-        "1007"
-      ]
-    },
-    {
-      "@id": "1002",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "For models that require external power for backup or remote access functionality",
-        "Processor that handles the computation and data management tasks for the NAS",
-        "Used for system management, status indicators, and user interaction",
-        "Embedded software that allows the NAS to function, enabling file sharing, RAID management, and remote access",
-        "Used for connecting the hard drives to the motherboard or RAID controller",
-        "Memory module used to temporarily store data and improve performance",
-        "The physical case that houses all the server’s internal components.",
-        "Physical lock mechanism to secure the NAS system in a rack or on-site",
-        "For connecting external drives or devices for additional storage or backups",
-        "The main circuit board that connects all the internal components of the server.",
-        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
-        "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
-        "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "LED lights on the front panel indicating system status, disk activity and network connection",
-        "Used to dissipate heat generated by the processor",
-        "For stable power to all components",
-        "High-capacity storage drive for data centers",
-        "Interface card for network connectivity"
-      ],
-      "Minimum Alternate Price": [
-        "2",
-        "4",
-        "1"
-      ],
-      "Quantity": [
-        "C3000-NAS-04"
-      ],
-      "Total Material Price": [
-        "Chassis (NAS Enclosure)",
-        "Hard Disk Drive (HDD 2TB)",
-        "External Power Adapter",
-        "Security Lock (optional)",
-        "Motherboard",
-        "LED Indicators",
-        "Power Supply Unit",
-        "RAID Controller",
-        "USB Ports/Connectors",
-        "Internal Wiring",
-        "RAM (4GB DDR4)",
-        "Operating System (NAS OS)",
-        "Cooling Fan",
-        "Front Panel Control Buttons",
-        "Network Interface Card (Gigabit Ethernet)",
-        "Heat Sink",
-        "CPU (Dual-core)",
-        "SATA Cables"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "13517",
-        "6941",
-        "2150",
-        "8737",
-        "13532",
-        "6929",
-        "10546",
-        "139",
-        "13531",
-        "6584",
-        "2118",
-        "3705",
-        "13538",
-        "4634",
-        "2541",
-        "6946",
-        "5530",
-        "2968"
-      ],
-      "has Material": [
-        "C179192512",
-        "C215754791",
-        "C265906184",
-        "C855117521",
-        "C685907335",
-        "C359535480",
-        "C601873608",
-        "C817769075",
-        "C324586584",
-        "C448516712",
-        "C254508626",
-        "C793058918",
-        "C148805343",
-        "C486631144",
-        "C855770764",
-        "C563400186",
-        "C887308676",
-        "C918246783"
-      ],
-      "has Product": [
-        "1002"
-      ]
-    },
-    {
-      "@id": "1018",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "For stable power to all components",
-        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
-        "For use in the RAID array"
-      ],
-      "Minimum Alternate Price": [
-        "4",
-        "1"
-      ],
-      "Quantity": [
-        "P7000-RAID-CONTROLLER"
-      ],
-      "Total Material Price": [
-        "RAID Controller",
-        "Power Supply Unit",
-        "Storage Drives"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "8737",
-        "6945",
-        "13526"
-      ],
-      "has Material": [
-        "C390839499",
-        "C793058918",
-        "C918246783"
-      ],
-      "has Product": [
-        "1018"
-      ]
-    },
-    {
-      "@id": "1004",
-      "@type": [
-        "BillOfMaterials"
-      ],
-      "Min Alternate Material Unit Price": [
-        "The physical case that houses all the server’s internal components.",
-        "Backup battery modules for the UPS",
-        "For stable power to all components",
-        "Converts DC to AC when utility power fails",
-        "For monitoring UPS status",
-        "Necessary for maintaining optimal operating temperature and preventing overheating."
-      ],
-      "Minimum Alternate Price": [
-        "2",
-        "1"
-      ],
-      "Quantity": [
-        "R5000-UPS-1KVA"
-      ],
-      "Total Material Price": [
-        "Inverter",
-        "Cooling Fan",
-        "Display Panel",
-        "Chassis (Small Component Enclosure)",
-        "UPS Battery Modules",
-        "Power Supply Unit"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "3693",
-        "13537",
-        "3371",
-        "13540",
-        "6101",
-        "8737"
-      ],
-      "has Material": [
-        "C486631144",
-        "C552847676",
-        "C793058918",
-        "C601873610",
-        "C168529262",
-        "C368182888"
-      ],
-      "has Product": [
-        "1004"
-      ]
-    },
-    {
-      "@id": "T10000-HDD-10TB",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": 0.0,
+      "B/(W) Competitive Ratio": 2000.0,
       "B/(W) Competitor Cost": "0.40",
-      "B/(W) Competitor Margins": 0.0,
-      "Competitor Retail Price": "0.47",
-      "Est. Competitor Cost": 300.0,
-      "Est. Competitor Margin": 180.0,
-      "Gross Margin": 160.25,
-      "Margin Improvement": 25.75,
-      "Minimum Potential Cost": "0.07",
-      "Minimum Retail Price B/(W) Competitor Price": "0.16",
-      "Minimum Retail Price at Optimal Gross Margin": 134.5,
-      "Potential Cost Savings Per Product": 251.79,
-      "Product Cost of Goods Sold": 300.0,
-      "Product Description": "10TB Hard Disk Drive (HDD)",
-      "Product Name": "T10000-HDD-10TB",
-      "Product Retail Price": "A high-capacity hard disk drive suitable for storing large volumes of data. Designed for data center environments and offers reliability for long-term storage."
+      "B/(W) Competitor Margins": 20.0,
+      "Competitor Retail Price": "0.42",
+      "Est. Competitor Cost": 10000.0,
+      "Est. Competitor Margin": 6000.0,
+      "Gross Margin": 4676.55,
+      "Margin Improvement": 69.25,
+      "Minimum Potential Cost": "0.02",
+      "Minimum Retail Price B/(W) Competitor Price": "0.01",
+      "Minimum Retail Price at Optimal Gross Margin": 4607.3,
+      "Potential Cost Savings Per Product": 7881.54,
+      "Product Cost of Goods Sold": 8000.0,
+      "Product Description": "Virtual Storage Area Network (vSAN) Cluster",
+      "Product Name": "Z7000-VSAN-CLUSTER",
+      "Product Retail Price": "A scalable storage solution that integrates compute and storage in a virtualized environment for improved storage management and performance."
     },
     {
       "@id": "S6000-MEM-64GB",
@@ -1044,147 +467,158 @@
       "Product Retail Price": "A high-capacity memory module designed for servers, offering fast data access and improved multitasking and virtualization performance."
     },
     {
-      "@id": "1005",
+      "@id": "S4000-CPU-02",
       "@type": [
-        "BillOfMaterials"
+        "Product"
       ],
-      "Min Alternate Material Unit Price": [
-        "For storing archived data",
-        "Handles the operation of the tape drive",
-        "The physical case that houses all the server’s internal components.",
-        "Used to read/write data onto magnetic tapes",
-        "For stable power to all components"
-      ],
-      "Minimum Alternate Price": [
-        "10",
-        "1"
-      ],
-      "Quantity": [
-        "X6000-TAPE-DRIVE"
-      ],
-      "Total Material Price": [
-        "Drive Mechanism",
-        "Tape Drive",
-        "Power Supply Unit",
-        "Chassis (Small Component Enclosure)",
-        "Magnetic Tape Cartridges"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "13541",
-        "6950",
-        "8737",
-        "2209",
-        "12197"
-      ],
-      "has Material": [
-        "C793058918",
-        "C601873610",
-        "C365367448",
-        "C596445134",
-        "C219785538"
-      ],
-      "has Product": [
-        "1005"
-      ]
+      "B/(W) Competitive Ratio": 1000.0,
+      "B/(W) Competitor Cost": "0.30",
+      "B/(W) Competitor Margins": 20.0,
+      "Competitor Retail Price": "0.49",
+      "Est. Competitor Cost": 5000.0,
+      "Est. Competitor Margin": 3500.0,
+      "Gross Margin": 2035.38,
+      "Margin Improvement": 159.75,
+      "Minimum Potential Cost": "0.19",
+      "Minimum Retail Price B/(W) Competitor Price": "0.08",
+      "Minimum Retail Price at Optimal Gross Margin": 1875.63,
+      "Potential Cost Savings Per Product": 3686.05,
+      "Product Cost of Goods Sold": 4000.0,
+      "Product Description": "Dual Processor Compute Node",
+      "Product Name": "S4000-CPU-02",
+      "Product Retail Price": "A compute node with dual high-performance processors for distributed computing, designed for use in data centers and high-demand environments."
     },
     {
-      "@id": "1019",
+      "@id": "P1000-SERVER-01",
       "@type": [
-        "BillOfMaterials"
+        "Product"
       ],
-      "Min Alternate Material Unit Price": [
-        "For threat detection and prevention",
-        "For stable power to all components",
-        "Necessary for maintaining optimal operating temperature and preventing overheating."
-      ],
-      "Minimum Alternate Price": [
-        "1",
-        "2"
-      ],
-      "Quantity": [
-        "Q8000-FIREWALL-APPLIANCE"
-      ],
-      "Total Material Price": [
-        "Power Supply Unit",
-        "Cooling Fan",
-        "Security Software"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "8184",
-        "3697",
-        "8737"
-      ],
-      "has Material": [
-        "C541634562",
-        "C486631144",
-        "C793058918"
-      ],
-      "has Product": [
-        "1019"
-      ]
+      "B/(W) Competitive Ratio": 1200.0,
+      "B/(W) Competitor Cost": "0.35",
+      "B/(W) Competitor Margins": 15.0,
+      "Competitor Retail Price": "0.34",
+      "Est. Competitor Cost": 8000.0,
+      "Est. Competitor Margin": 5200.0,
+      "Gross Margin": 4483.5,
+      "Margin Improvement": 115.5,
+      "Minimum Potential Cost": "-0.01",
+      "Minimum Retail Price B/(W) Competitor Price": "0.03",
+      "Minimum Retail Price at Optimal Gross Margin": 4368.0,
+      "Potential Cost Savings Per Product": 6720.0,
+      "Product Cost of Goods Sold": 6800.0,
+      "Product Description": "Enterprise Rackmount Server",
+      "Product Name": "P1000-SERVER-01",
+      "Product Retail Price": "A high-performance rack-mounted server designed for heavy-duty computing tasks such as database management, virtualization, and cloud hosting. Includes multiple CPU slots and ample RAM expansion."
     },
     {
-      "@id": "1003",
+      "@id": "P2000-SSD-512",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": -100.0,
+      "B/(W) Competitor Cost": "0.35",
+      "B/(W) Competitor Margins": -100.0,
+      "Competitor Retail Price": "0.36",
+      "Est. Competitor Cost": 100.0,
+      "Est. Competitor Margin": 65.0,
+      "Gross Margin": 127.8,
+      "Margin Improvement": 8.88,
+      "Minimum Potential Cost": "0.01",
+      "Minimum Retail Price B/(W) Competitor Price": "0.07",
+      "Minimum Retail Price at Optimal Gross Margin": 118.92,
+      "Potential Cost Savings Per Product": 186.1,
+      "Product Cost of Goods Sold": 200.0,
+      "Product Description": "512GB SSD Storage Drive",
+      "Product Name": "P2000-SSD-512",
+      "Product Retail Price": "A solid-state drive (SSD) offering high-speed data transfer and reduced latency, ideal for use in high-performance applications and as an enterprise storage solution."
+    },
+    {
+      "@id": "X6000-TAPE-DRIVE",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": -150.0,
+      "B/(W) Competitor Cost": "0.33",
+      "B/(W) Competitor Margins": -25.0,
+      "Competitor Retail Price": "0.34",
+      "Est. Competitor Cost": 600.0,
+      "Est. Competitor Margin": 400.0,
+      "Gross Margin": 494.8,
+      "Margin Improvement": 138.4,
+      "Minimum Potential Cost": "0.01",
+      "Minimum Retail Price B/(W) Competitor Price": "0.28",
+      "Minimum Retail Price at Optimal Gross Margin": 356.4,
+      "Potential Cost Savings Per Product": 540.22,
+      "Product Cost of Goods Sold": 750.0,
+      "Product Description": "High-Capacity Tape Backup Drive",
+      "Product Name": "X6000-TAPE-DRIVE",
+      "Product Retail Price": "A tape drive solution designed for archiving large amounts of data with high reliability and long shelf life for backup and disaster recovery."
+    },
+    {
+      "@id": "V15000-VMWARE-ESX",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": 0.0,
+      "B/(W) Competitor Cost": "0.50",
+      "B/(W) Competitor Margins": 0.0,
+      "Competitor Retail Price": "0.40",
+      "Est. Competitor Cost": 1000.0,
+      "Est. Competitor Margin": 500.0,
+      "Gross Margin": 600.0,
+      "Margin Improvement": 0.0,
+      "Minimum Potential Cost": "-0.10",
+      "Minimum Retail Price B/(W) Competitor Price": "0.00",
+      "Minimum Retail Price at Optimal Gross Margin": 600.0,
+      "Potential Cost Savings Per Product": 1200.0,
+      "Product Cost of Goods Sold": 1000.0,
+      "Product Description": "VMware ESX Hypervisor Software",
+      "Product Name": "V15000-VMWARE-ESX",
+      "Product Retail Price": "Virtualization software that enables multiple virtual machines to run on a single physical server, reducing hardware costs and increasing efficiency."
+    },
+    {
+      "@id": "1008",
       "@type": [
         "BillOfMaterials"
       ],
       "Min Alternate Material Unit Price": [
-        "High-performance processor for data center applications",
-        "For stable power to all components",
-        "Used for fast storage in the compute node",
-        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
-        "The main circuit board that connects all the internal components of the server.",
-        "Sufficient memory to ensure smooth operation for database management, virtualization, and other heavy workloads. Multiple RAM sticks are included to ensure proper scalability.",
-        "Used to dissipate heat generated by the processor",
+        "For installing servers in the rack",
         "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "The physical case that houses all the server’s internal components.",
-        "Interface card for network connectivity"
+        "For distributing power to mounted servers",
+        "Protective housing for the internal components",
+        "For organizing and routing cables"
       ],
       "Minimum Alternate Price": [
+        "2",
         "1",
-        "2"
+        "4"
       ],
       "Quantity": [
-        "S4000-CPU-02"
+        "E9000-RACK-ENCLOSURE"
       ],
       "Total Material Price": [
-        "Heat Sink",
-        "Storage Drives (500GB SSD)",
+        "Rails",
+        "Cable Management System",
         "Cooling Fan",
-        "Power Supply Unit",
-        "Dual Processor (Xeon or AMD)",
-        "RAM (32GB DDR4)",
-        "RAID Controller",
-        "Network Interface Card (Gigabit Ethernet)",
-        "Chassis (Chip Enclosure)",
-        "Motherboard"
+        "Enclosure",
+        "Power Distribution Unit (PDU)"
       ],
       "has Lowest Cost Alternative Material Number": [
-        "2117",
-        "4634",
-        "6942",
-        "8737",
-        "2984",
-        "3695",
-        "13539",
-        "13515",
-        "6948",
-        "13528"
+        "2148",
+        "3703",
+        "13535",
+        "302",
+        "13511"
       ],
       "has Material": [
-        "C922734947",
-        "C486631144",
-        "C855770764",
-        "C793058918",
-        "C601873609",
-        "C817769075",
-        "C249826420",
-        "C265906184",
-        "C918246783",
-        "C615848753"
+        "C289958444",
+        "C982151458",
+        "C139465852",
+        "C160512301",
+        "C486631144"
       ],
       "has Product": [
-        "1003"
+        "1008"
       ]
     },
     {
@@ -1210,93 +644,344 @@
       "Product Retail Price": "A cloud-based storage solution for businesses to store, access, and manage data remotely with scalability and high availability."
     },
     {
-      "@id": "P2000-SSD-512",
-      "@type": [
-        "Product"
-      ],
-      "B/(W) Competitive Ratio": -100.0,
-      "B/(W) Competitor Cost": "0.35",
-      "B/(W) Competitor Margins": -100.0,
-      "Competitor Retail Price": "0.36",
-      "Est. Competitor Cost": 100.0,
-      "Est. Competitor Margin": 65.0,
-      "Gross Margin": 127.8,
-      "Margin Improvement": 8.88,
-      "Minimum Potential Cost": "0.01",
-      "Minimum Retail Price B/(W) Competitor Price": "0.07",
-      "Minimum Retail Price at Optimal Gross Margin": 118.92,
-      "Potential Cost Savings Per Product": 186.1,
-      "Product Cost of Goods Sold": 200.0,
-      "Product Description": "512GB SSD Storage Drive",
-      "Product Name": "P2000-SSD-512",
-      "Product Retail Price": "A solid-state drive (SSD) offering high-speed data transfer and reduced latency, ideal for use in high-performance applications and as an enterprise storage solution."
-    },
-    {
-      "@id": "1008",
+      "@id": "1010",
       "@type": [
         "BillOfMaterials"
       ],
       "Min Alternate Material Unit Price": [
-        "For distributing power to mounted servers",
-        "For organizing and routing cables",
-        "Protective housing for the internal components",
-        "For installing servers in the rack",
-        "Necessary for maintaining optimal operating temperature and preventing overheating."
+        "48 ports for LAN connectivity",
+        "For stable power to all components",
+        "Manages data traffic between devices",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "For configuring and monitoring the switch"
       ],
       "Minimum Alternate Price": [
-        "1",
         "2",
-        "4"
+        "1"
       ],
       "Quantity": [
-        "E9000-RACK-ENCLOSURE"
+        "B11000-SWITCH-48P"
       ],
       "Total Material Price": [
-        "Power Distribution Unit (PDU)",
-        "Cable Management System",
-        "Rails",
-        "Enclosure",
-        "Cooling Fan"
+        "Cooling Fan",
+        "Network Ports",
+        "Power Supply Unit",
+        "Management Interface",
+        "Switching Fabric"
       ],
       "has Lowest Cost Alternative Material Number": [
-        "2148",
-        "3703",
-        "13535",
-        "13511",
-        "302"
+        "6871",
+        "8737",
+        "13533",
+        "11960",
+        "3705"
       ],
       "has Material": [
-        "C289958444",
+        "C477038200",
+        "C793058918",
+        "C168319231",
         "C486631144",
-        "C982151458",
-        "C139465852",
-        "C160512301"
+        "C217956882"
       ],
       "has Product": [
-        "1008"
+        "1010"
       ]
     },
     {
-      "@id": "S4000-CPU-02",
+      "@id": "1006",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "For stable power to all components",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "Server units housing storage disks",
+        "Memory for data processing and management",
+        "The main circuit board that connects all the internal components of the server.",
+        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "Processor that handles the computation and data management tasks for the NAS",
+        "Interface card for network connectivity",
+        "For high-speed storage"
+      ],
+      "Minimum Alternate Price": [
+        "1",
+        "4",
+        "2",
+        "3",
+        "8",
+        "6"
+      ],
+      "Quantity": [
+        "Z7000-VSAN-CLUSTER"
+      ],
+      "Total Material Price": [
+        "Power Supply Unit",
+        "SSD Storage (1TB)",
+        "CPU (Dual-core)",
+        "RAID Controller",
+        "RAM (64GB DDR4)",
+        "Network Interface Card (Gigabit Ethernet)",
+        "Storage Nodes",
+        "Motherboard",
+        "Cooling Fan"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "13519",
+        "6945",
+        "6944",
+        "2118",
+        "13522",
+        "3705",
+        "2968",
+        "8737",
+        "13530"
+      ],
+      "has Material": [
+        "C855770764",
+        "C265906184",
+        "C486631144",
+        "C918246783",
+        "C179192512",
+        "C793058918",
+        "C938586599",
+        "C432465317",
+        "C521369586"
+      ],
+      "has Product": [
+        "1006"
+      ]
+    },
+    {
+      "@id": "1003",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "For stable power to all components",
+        "Used for fast storage in the compute node",
+        "Sufficient memory to ensure smooth operation for database management, virtualization, and other heavy workloads. Multiple RAM sticks are included to ensure proper scalability.",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "High-performance processor for data center applications",
+        "The main circuit board that connects all the internal components of the server.",
+        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "Used to dissipate heat generated by the processor",
+        "Interface card for network connectivity",
+        "The physical case that houses all the server’s internal components."
+      ],
+      "Minimum Alternate Price": [
+        "2",
+        "1"
+      ],
+      "Quantity": [
+        "S4000-CPU-02"
+      ],
+      "Total Material Price": [
+        "Heat Sink",
+        "Network Interface Card (Gigabit Ethernet)",
+        "Storage Drives (500GB SSD)",
+        "Dual Processor (Xeon or AMD)",
+        "RAM (32GB DDR4)",
+        "Cooling Fan",
+        "Power Supply Unit",
+        "RAID Controller",
+        "Chassis (Chip Enclosure)",
+        "Motherboard"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "13528",
+        "3695",
+        "2117",
+        "13539",
+        "13515",
+        "6942",
+        "6948",
+        "4634",
+        "2984",
+        "8737"
+      ],
+      "has Material": [
+        "C265906184",
+        "C817769075",
+        "C855770764",
+        "C601873609",
+        "C486631144",
+        "C922734947",
+        "C249826420",
+        "C615848753",
+        "C793058918",
+        "C918246783"
+      ],
+      "has Product": [
+        "1003"
+      ]
+    },
+    {
+      "@id": "1004",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "For monitoring UPS status",
+        "Converts DC to AC when utility power fails",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "The physical case that houses all the server’s internal components.",
+        "Backup battery modules for the UPS",
+        "For stable power to all components"
+      ],
+      "Minimum Alternate Price": [
+        "1",
+        "2"
+      ],
+      "Quantity": [
+        "R5000-UPS-1KVA"
+      ],
+      "Total Material Price": [
+        "Chassis (Small Component Enclosure)",
+        "Inverter",
+        "Display Panel",
+        "Power Supply Unit",
+        "UPS Battery Modules",
+        "Cooling Fan"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "6101",
+        "13540",
+        "8737",
+        "3693",
+        "3371",
+        "13537"
+      ],
+      "has Material": [
+        "C368182888",
+        "C168529262",
+        "C552847676",
+        "C486631144",
+        "C601873610",
+        "C793058918"
+      ],
+      "has Product": [
+        "1004"
+      ]
+    },
+    {
+      "@id": "1015",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "For routing data between networks",
+        "For stable power to all components",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "Interface card for network connectivity"
+      ],
+      "Minimum Alternate Price": [
+        "1",
+        "2"
+      ],
+      "Quantity": [
+        "U4000-EDGE-ROUTER"
+      ],
+      "Total Material Price": [
+        "Network Interface Card (Gigabit Ethernet)",
+        "Cooling Fan",
+        "Power Supply Unit",
+        "Router Hardware"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "3690",
+        "13529",
+        "8737",
+        "2117"
+      ],
+      "has Material": [
+        "C486631144",
+        "C573404456",
+        "C855770764",
+        "C793058918"
+      ],
+      "has Product": [
+        "1015"
+      ]
+    },
+    {
+      "@id": "N5000-LCD-MONITOR",
       "@type": [
         "Product"
       ],
-      "B/(W) Competitive Ratio": 1000.0,
-      "B/(W) Competitor Cost": "0.30",
-      "B/(W) Competitor Margins": 20.0,
-      "Competitor Retail Price": "0.49",
-      "Est. Competitor Cost": 5000.0,
-      "Est. Competitor Margin": 3500.0,
-      "Gross Margin": 2035.38,
-      "Margin Improvement": 159.75,
-      "Minimum Potential Cost": "0.19",
-      "Minimum Retail Price B/(W) Competitor Price": "0.08",
-      "Minimum Retail Price at Optimal Gross Margin": 1875.63,
-      "Potential Cost Savings Per Product": 3686.05,
-      "Product Cost of Goods Sold": 4000.0,
-      "Product Description": "Dual Processor Compute Node",
-      "Product Name": "S4000-CPU-02",
-      "Product Retail Price": "A compute node with dual high-performance processors for distributed computing, designed for use in data centers and high-demand environments."
+      "B/(W) Competitive Ratio": -250.0,
+      "B/(W) Competitor Cost": "0.40",
+      "B/(W) Competitor Margins": -100.0,
+      "Competitor Retail Price": "0.40",
+      "Est. Competitor Cost": 250.0,
+      "Est. Competitor Margin": 150.0,
+      "Gross Margin": 299.4,
+      "Margin Improvement": 58.9,
+      "Minimum Potential Cost": "0.00",
+      "Minimum Retail Price B/(W) Competitor Price": "0.20",
+      "Minimum Retail Price at Optimal Gross Margin": 240.5,
+      "Potential Cost Savings Per Product": 401.64,
+      "Product Cost of Goods Sold": 500.0,
+      "Product Description": "24-inch LCD Monitor for Server Console",
+      "Product Name": "N5000-LCD-MONITOR",
+      "Product Retail Price": "A high-resolution, energy-efficient LCD monitor used for managing server and network equipment, with support for multiple display configurations."
+    },
+    {
+      "@id": "1011",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "High-speed data transmission cable for long-distance",
+        "For connecting fiber cables to equipment",
+        "For organizing and routing cables"
+      ],
+      "Minimum Alternate Price": [
+        "20",
+        "10"
+      ],
+      "Quantity": [
+        "F12000-OPTICAL-FIBER"
+      ],
+      "Total Material Price": [
+        "Connectors",
+        "Fiber Cable (OM4)",
+        "Cable Sleeves"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "2174",
+        "2149",
+        "2618"
+      ],
+      "has Material": [
+        "C271397067",
+        "C787500501",
+        "C139465853"
+      ],
+      "has Product": [
+        "1011"
+      ]
+    },
+    {
+      "@id": "T10000-HDD-10TB",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": 0.0,
+      "B/(W) Competitor Cost": "0.40",
+      "B/(W) Competitor Margins": 0.0,
+      "Competitor Retail Price": "0.47",
+      "Est. Competitor Cost": 300.0,
+      "Est. Competitor Margin": 180.0,
+      "Gross Margin": 160.25,
+      "Margin Improvement": 25.75,
+      "Minimum Potential Cost": "0.07",
+      "Minimum Retail Price B/(W) Competitor Price": "0.16",
+      "Minimum Retail Price at Optimal Gross Margin": 134.5,
+      "Potential Cost Savings Per Product": 251.79,
+      "Product Cost of Goods Sold": 300.0,
+      "Product Description": "10TB Hard Disk Drive (HDD)",
+      "Product Name": "T10000-HDD-10TB",
+      "Product Retail Price": "A high-capacity hard disk drive suitable for storing large volumes of data. Designed for data center environments and offers reliability for long-term storage."
     },
     {
       "@id": "F12000-OPTICAL-FIBER",
@@ -1321,15 +1006,68 @@
       "Product Retail Price": "A high-speed fiber optic cable designed for high-bandwidth, low-latency network connections between servers and storage devices."
     },
     {
+      "@id": "1014",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "Software for controlling access to cloud storage",
+        "Remote data storage servers"
+      ],
+      "Minimum Alternate Price": [
+        "1"
+      ],
+      "Quantity": [
+        "M3000-CLOUD-SERVICE"
+      ],
+      "Total Material Price": [
+        "Cloud Storage Infrastructure",
+        "Access Management System"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "11963",
+        "2119"
+      ],
+      "has Material": [
+        "C858545219",
+        "C717308005"
+      ],
+      "has Product": [
+        "1014"
+      ]
+    },
+    {
+      "@id": "C3000-NAS-04",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": -2500.0,
+      "B/(W) Competitor Cost": "0.35",
+      "B/(W) Competitor Margins": -125.0,
+      "Competitor Retail Price": "0.50",
+      "Est. Competitor Cost": 2000.0,
+      "Est. Competitor Margin": 1300.0,
+      "Gross Margin": 2232.11,
+      "Margin Improvement": 217.32,
+      "Minimum Potential Cost": "0.15",
+      "Minimum Retail Price B/(W) Competitor Price": "0.10",
+      "Minimum Retail Price at Optimal Gross Margin": 2014.79,
+      "Potential Cost Savings Per Product": 4061.88,
+      "Product Cost of Goods Sold": 4500.0,
+      "Product Description": "4-Bay Network-Attached Storage (NAS)",
+      "Product Name": "C3000-NAS-04",
+      "Product Retail Price": "A compact 4-bay NAS system for file storage and sharing in small to medium businesses. Supports multiple RAID configurations and remote access."
+    },
+    {
       "@id": "1009",
       "@type": [
         "BillOfMaterials"
       ],
       "Min Alternate Material Unit Price": [
-        "High-capacity storage drive for data centers",
-        "Protective housing for the internal components",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
         "Manages data reading/writing on the drive",
-        "Necessary for maintaining optimal operating temperature and preventing overheating."
+        "High-capacity storage drive for data centers",
+        "Protective housing for the internal components"
       ],
       "Minimum Alternate Price": [
         "1",
@@ -1339,10 +1077,10 @@
         "T10000-HDD-10TB"
       ],
       "Total Material Price": [
+        "Cooling Fan",
         "Drive Controller",
         "Hard Disk Drive (HDD 2TB)",
-        "Enclosure",
-        "Cooling Fan"
+        "Enclosure"
       ],
       "has Lowest Cost Alternative Material Number": [
         "3695",
@@ -1351,14 +1089,122 @@
         "302"
       ],
       "has Material": [
-        "C380238021",
         "C486631144",
-        "C289958444",
-        "C685907335"
+        "C685907335",
+        "C380238021",
+        "C289958444"
       ],
       "has Product": [
         "1009"
       ]
+    },
+    {
+      "@id": "1001",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "Manages data read/write operations and the communication between the NAND flash memory and host computer",
+        "The board that connects and supports all the internal components of the SSD",
+        "Branding and specification information",
+        "Temporary storage used to increase the speed of data access and improve SSD performance",
+        "Used to dissipate heat generated during the operation of the SSD",
+        "Non-volatile memory used to store data in SSDs",
+        "Protective housing for the internal components",
+        "Ensures data integrity during power failure by providing backup power for a short time",
+        "Interface connector that allows the SSD to connect to the computer or server"
+      ],
+      "Minimum Alternate Price": [
+        "1"
+      ],
+      "Quantity": [
+        "P2000-SSD-512"
+      ],
+      "Total Material Price": [
+        "NAND Flash Memory",
+        "DRAM Cache",
+        "PCB (Printed Circuit Board)",
+        "Enclosure",
+        "Power Loss Protection Capacitor",
+        "Thermal Pad or Heat Sink",
+        "Controller",
+        "Connector (SATA or NVMe)",
+        "Label/Sticker"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "6935",
+        "13536",
+        "302",
+        "13514",
+        "2096",
+        "559",
+        "5483",
+        "8235",
+        "8588"
+      ],
+      "has Material": [
+        "C299195901",
+        "C293693863",
+        "C512238902",
+        "C631979278",
+        "C324738937",
+        "C200706618",
+        "C991622653",
+        "C289958444",
+        "C330674067"
+      ],
+      "has Product": [
+        "1001"
+      ]
+    },
+    {
+      "@id": "1018",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "For use in the RAID array",
+        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "For stable power to all components"
+      ],
+      "Minimum Alternate Price": [
+        "1",
+        "4"
+      ],
+      "Quantity": [
+        "P7000-RAID-CONTROLLER"
+      ],
+      "Total Material Price": [
+        "Power Supply Unit",
+        "Storage Drives",
+        "RAID Controller"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "8737",
+        "6945",
+        "13526"
+      ],
+      "has Material": [
+        "C793058918",
+        "C390839499",
+        "C918246783"
+      ],
+      "has Product": [
+        "1018"
+      ]
+    },
+    {
+      "@id": "1017",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": "Memory for data processing and management",
+      "Minimum Alternate Price": "1",
+      "Quantity": "S6000-MEM-64GB",
+      "Total Material Price": "RAM (64GB DDR4)",
+      "has Lowest Cost Alternative Material Number": "13519",
+      "has Material": "C432465317",
+      "has Product": "1017"
     },
     {
       "@id": "B11000-SWITCH-48P",
@@ -1383,84 +1229,202 @@
       "Product Retail Price": "A high-performance network switch offering advanced features such as VLAN support, Quality of Service (QoS), and redundancy for enterprise networks."
     },
     {
-      "@id": "1010",
+      "@id": "Q8000-FIREWALL-APPLIANCE",
       "@type": [
-        "BillOfMaterials"
+        "Product"
       ],
-      "Min Alternate Material Unit Price": [
-        "For configuring and monitoring the switch",
-        "48 ports for LAN connectivity",
-        "For stable power to all components",
-        "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "Manages data traffic between devices"
-      ],
-      "Minimum Alternate Price": [
-        "2",
-        "1"
-      ],
-      "Quantity": [
-        "B11000-SWITCH-48P"
-      ],
-      "Total Material Price": [
-        "Switching Fabric",
-        "Power Supply Unit",
-        "Management Interface",
-        "Network Ports",
-        "Cooling Fan"
-      ],
-      "has Lowest Cost Alternative Material Number": [
-        "13533",
-        "3705",
-        "6871",
-        "11960",
-        "8737"
-      ],
-      "has Material": [
-        "C486631144",
-        "C477038200",
-        "C217956882",
-        "C168319231",
-        "C793058918"
-      ],
-      "has Product": [
-        "1010"
-      ]
+      "B/(W) Competitive Ratio": 44.0,
+      "B/(W) Competitor Cost": "0.31",
+      "B/(W) Competitor Margins": 6.0,
+      "Competitor Retail Price": "0.30",
+      "Est. Competitor Cost": 800.0,
+      "Est. Competitor Margin": 550.0,
+      "Gross Margin": 528.5,
+      "Margin Improvement": 2.0,
+      "Minimum Potential Cost": "-0.01",
+      "Minimum Retail Price B/(W) Competitor Price": "0.00",
+      "Minimum Retail Price at Optimal Gross Margin": 526.5,
+      "Potential Cost Savings Per Product": 765.82,
+      "Product Cost of Goods Sold": 756.0,
+      "Product Description": "Next-Generation Firewall Appliance",
+      "Product Name": "Q8000-FIREWALL-APPLIANCE",
+      "Product Retail Price": "A security appliance providing network protection against cyber threats, with advanced filtering, VPN support, and real-time threat intelligence."
     },
     {
-      "@id": "1011",
+      "@id": "U4000-EDGE-ROUTER",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": -200.0,
+      "B/(W) Competitor Cost": "0.30",
+      "B/(W) Competitor Margins": -40.0,
+      "Competitor Retail Price": "0.31",
+      "Est. Competitor Cost": 500.0,
+      "Est. Competitor Margin": 350.0,
+      "Gross Margin": 484.75,
+      "Margin Improvement": 8.25,
+      "Minimum Potential Cost": "0.01",
+      "Minimum Retail Price B/(W) Competitor Price": "0.02",
+      "Minimum Retail Price at Optimal Gross Margin": 476.5,
+      "Potential Cost Savings Per Product": 688.09,
+      "Product Cost of Goods Sold": 700.0,
+      "Product Description": "Edge Router",
+      "Product Name": "U4000-EDGE-ROUTER",
+      "Product Retail Price": "A router designed for the edge of a network, providing secure and high-speed connectivity for data transfers between the local network and the wider internet."
+    },
+    {
+      "@id": "1005",
       "@type": [
         "BillOfMaterials"
       ],
       "Min Alternate Material Unit Price": [
-        "For connecting fiber cables to equipment",
-        "High-speed data transmission cable for long-distance",
-        "For organizing and routing cables"
+        "For stable power to all components",
+        "For storing archived data",
+        "Used to read/write data onto magnetic tapes",
+        "The physical case that houses all the server’s internal components.",
+        "Handles the operation of the tape drive"
       ],
       "Minimum Alternate Price": [
-        "20",
+        "1",
         "10"
       ],
       "Quantity": [
-        "F12000-OPTICAL-FIBER"
+        "X6000-TAPE-DRIVE"
       ],
       "Total Material Price": [
-        "Cable Sleeves",
-        "Fiber Cable (OM4)",
-        "Connectors"
+        "Chassis (Small Component Enclosure)",
+        "Tape Drive",
+        "Power Supply Unit",
+        "Drive Mechanism",
+        "Magnetic Tape Cartridges"
       ],
       "has Lowest Cost Alternative Material Number": [
-        "2149",
-        "2174",
-        "2618"
+        "2209",
+        "6950",
+        "12197",
+        "13541",
+        "8737"
       ],
       "has Material": [
-        "C271397067",
-        "C787500501",
-        "C139465853"
+        "C601873610",
+        "C219785538",
+        "C793058918",
+        "C365367448",
+        "C596445134"
       ],
       "has Product": [
-        "1011"
+        "1005"
       ]
+    },
+    {
+      "@id": "1002",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "Memory module used to temporarily store data and improve performance",
+        "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
+        "Processor that handles the computation and data management tasks for the NAS",
+        "Embedded software that allows the NAS to function, enabling file sharing, RAID management, and remote access",
+        "For connecting external drives or devices for additional storage or backups",
+        "Used for system management, status indicators, and user interaction",
+        "For stable power to all components",
+        "Used for connecting the hard drives to the motherboard or RAID controller",
+        "Interface card for network connectivity",
+        "The physical case that houses all the server’s internal components.",
+        "For models that require external power for backup or remote access functionality",
+        "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "Used to dissipate heat generated by the processor",
+        "The main circuit board that connects all the internal components of the server.",
+        "LED lights on the front panel indicating system status, disk activity and network connection",
+        "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "High-capacity storage drive for data centers",
+        "Physical lock mechanism to secure the NAS system in a rack or on-site"
+      ],
+      "Minimum Alternate Price": [
+        "2",
+        "4",
+        "1"
+      ],
+      "Quantity": [
+        "C3000-NAS-04"
+      ],
+      "Total Material Price": [
+        "USB Ports/Connectors",
+        "Motherboard",
+        "SATA Cables",
+        "Network Interface Card (Gigabit Ethernet)",
+        "Chassis (NAS Enclosure)",
+        "Security Lock (optional)",
+        "Hard Disk Drive (HDD 2TB)",
+        "Operating System (NAS OS)",
+        "Heat Sink",
+        "LED Indicators",
+        "Internal Wiring",
+        "External Power Adapter",
+        "CPU (Dual-core)",
+        "Front Panel Control Buttons",
+        "RAM (4GB DDR4)",
+        "RAID Controller",
+        "Cooling Fan",
+        "Power Supply Unit"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "2118",
+        "2968",
+        "13538",
+        "3705",
+        "8737",
+        "13531",
+        "10546",
+        "4634",
+        "139",
+        "6946",
+        "13517",
+        "13532",
+        "6584",
+        "6941",
+        "6929",
+        "2541",
+        "5530",
+        "2150"
+      ],
+      "has Material": [
+        "C793058918",
+        "C148805343",
+        "C359535480",
+        "C887308676",
+        "C448516712",
+        "C254508626",
+        "C324586584",
+        "C855770764",
+        "C486631144",
+        "C601873608",
+        "C265906184",
+        "C817769075",
+        "C215754791",
+        "C179192512",
+        "C918246783",
+        "C563400186",
+        "C685907335",
+        "C855117521"
+      ],
+      "has Product": [
+        "1002"
+      ]
+    },
+    {
+      "@id": "1012",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": "Physical hardware on which VMware runs",
+      "Minimum Alternate Price": "1",
+      "Quantity": "V15000-VMWARE-ESX",
+      "Total Material Price": "Server Hardware (CPU/RAM/Storage)",
+      "has Lowest Cost Alternative Material Number": "2967",
+      "has Material": "C264828619",
+      "has Product": "1012"
     },
     {
       "@id": "A2000-SAS-HBA",
@@ -1485,83 +1449,119 @@
       "Product Retail Price": "A storage controller card designed to connect servers to SAS storage devices, offering high-speed data access and improved scalability."
     },
     {
-      "@id": "X6000-TAPE-DRIVE",
+      "@id": "1016",
+      "@type": [
+        "BillOfMaterials"
+      ],
+      "Min Alternate Material Unit Price": [
+        "For visualizing server management information",
+        "For installation of the monitor",
+        "For stable power to all components"
+      ],
+      "Minimum Alternate Price": [
+        "1"
+      ],
+      "Quantity": [
+        "N5000-LCD-MONITOR"
+      ],
+      "Total Material Price": [
+        "Power Supply Unit",
+        "LCD Monitor (24-inch)",
+        "Mounting Kit"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "3374",
+        "6324",
+        "8737"
+      ],
+      "has Material": [
+        "C712001839",
+        "C793058918",
+        "C823673603"
+      ],
+      "has Product": [
+        "1016"
+      ]
+    },
+    {
+      "@id": "R5000-UPS-1KVA",
       "@type": [
         "Product"
       ],
       "B/(W) Competitive Ratio": -150.0,
-      "B/(W) Competitor Cost": "0.33",
-      "B/(W) Competitor Margins": -25.0,
-      "Competitor Retail Price": "0.34",
-      "Est. Competitor Cost": 600.0,
-      "Est. Competitor Margin": 400.0,
-      "Gross Margin": 494.8,
-      "Margin Improvement": 138.4,
-      "Minimum Potential Cost": "0.01",
-      "Minimum Retail Price B/(W) Competitor Price": "0.28",
-      "Minimum Retail Price at Optimal Gross Margin": 356.4,
-      "Potential Cost Savings Per Product": 540.22,
-      "Product Cost of Goods Sold": 750.0,
-      "Product Description": "High-Capacity Tape Backup Drive",
-      "Product Name": "X6000-TAPE-DRIVE",
-      "Product Retail Price": "A tape drive solution designed for archiving large amounts of data with high reliability and long shelf life for backup and disaster recovery."
+      "B/(W) Competitor Cost": "0.38",
+      "B/(W) Competitor Margins": -38.0,
+      "Competitor Retail Price": "0.33",
+      "Est. Competitor Cost": 400.0,
+      "Est. Competitor Margin": 250.0,
+      "Gross Margin": 370.85,
+      "Margin Improvement": 29.05,
+      "Minimum Potential Cost": "-0.05",
+      "Minimum Retail Price B/(W) Competitor Price": "0.08",
+      "Minimum Retail Price at Optimal Gross Margin": 341.8,
+      "Potential Cost Savings Per Product": 546.88,
+      "Product Cost of Goods Sold": 550.0,
+      "Product Description": "1kVA Uninterruptible Power Supply (UPS)",
+      "Product Name": "R5000-UPS-1KVA",
+      "Product Retail Price": "A reliable UPS unit that provides backup power for servers and network equipment during power outages, ensuring uninterrupted operations."
     },
     {
-      "@id": "1012",
+      "@id": "D8000-GPU-ACCELERATOR",
+      "@type": [
+        "Product"
+      ],
+      "B/(W) Competitive Ratio": -250.0,
+      "B/(W) Competitor Cost": "0.33",
+      "B/(W) Competitor Margins": -8.0,
+      "Competitor Retail Price": "0.33",
+      "Est. Competitor Cost": 3000.0,
+      "Est. Competitor Margin": 2000.0,
+      "Gross Margin": 2175.73,
+      "Margin Improvement": 10.88,
+      "Minimum Potential Cost": "0.00",
+      "Minimum Retail Price B/(W) Competitor Price": "0.00",
+      "Minimum Retail Price at Optimal Gross Margin": 2164.85,
+      "Potential Cost Savings Per Product": 3247.28,
+      "Product Cost of Goods Sold": 3250.0,
+      "Product Description": "GPU Compute Accelerator",
+      "Product Name": "D8000-GPU-ACCELERATOR",
+      "Product Retail Price": "A graphics processing unit (GPU) card designed to accelerate machine learning, artificial intelligence, and complex data processing tasks."
+    },
+    {
+      "@id": "1019",
       "@type": [
         "BillOfMaterials"
       ],
-      "Min Alternate Material Unit Price": "Physical hardware on which VMware runs",
-      "Minimum Alternate Price": "1",
-      "Quantity": "V15000-VMWARE-ESX",
-      "Total Material Price": "Server Hardware (CPU/RAM/Storage)",
-      "has Lowest Cost Alternative Material Number": "2967",
-      "has Material": "C264828619",
-      "has Product": "1012"
-    },
-    {
-      "@id": "P7000-RAID-CONTROLLER",
-      "@type": [
-        "Product"
+      "Min Alternate Material Unit Price": [
+        "For threat detection and prevention",
+        "For stable power to all components",
+        "Necessary for maintaining optimal operating temperature and preventing overheating."
       ],
-      "B/(W) Competitive Ratio": -212.0,
-      "B/(W) Competitor Cost": "0.38",
-      "B/(W) Competitor Margins": -53.0,
-      "Competitor Retail Price": "0.38",
-      "Est. Competitor Cost": 400.0,
-      "Est. Competitor Margin": 250.0,
-      "Gross Margin": 382.0,
-      "Margin Improvement": 0.0,
-      "Minimum Potential Cost": "0.00",
-      "Minimum Retail Price B/(W) Competitor Price": "0.00",
-      "Minimum Retail Price at Optimal Gross Margin": 382.0,
-      "Potential Cost Savings Per Product": 612.0,
-      "Product Cost of Goods Sold": 612.0,
-      "Product Description": "RAID Controller Card",
-      "Product Name": "P7000-RAID-CONTROLLER",
-      "Product Retail Price": "A RAID (Redundant Array of Independent Disks) controller card that enables multiple hard drives to be configured for data redundancy, speed, or both, in servers and storage arrays."
-    },
-    {
-      "@id": "V15000-VMWARE-ESX",
-      "@type": [
-        "Product"
+      "Minimum Alternate Price": [
+        "1",
+        "2"
       ],
-      "B/(W) Competitive Ratio": 0.0,
-      "B/(W) Competitor Cost": "0.50",
-      "B/(W) Competitor Margins": 0.0,
-      "Competitor Retail Price": "0.40",
-      "Est. Competitor Cost": 1000.0,
-      "Est. Competitor Margin": 500.0,
-      "Gross Margin": 600.0,
-      "Margin Improvement": 0.0,
-      "Minimum Potential Cost": "-0.10",
-      "Minimum Retail Price B/(W) Competitor Price": "0.00",
-      "Minimum Retail Price at Optimal Gross Margin": 600.0,
-      "Potential Cost Savings Per Product": 1200.0,
-      "Product Cost of Goods Sold": 1000.0,
-      "Product Description": "VMware ESX Hypervisor Software",
-      "Product Name": "V15000-VMWARE-ESX",
-      "Product Retail Price": "Virtualization software that enables multiple virtual machines to run on a single physical server, reducing hardware costs and increasing efficiency."
+      "Quantity": [
+        "Q8000-FIREWALL-APPLIANCE"
+      ],
+      "Total Material Price": [
+        "Cooling Fan",
+        "Power Supply Unit",
+        "Security Software"
+      ],
+      "has Lowest Cost Alternative Material Number": [
+        "3697",
+        "8737",
+        "8184"
+      ],
+      "has Material": [
+        "C793058918",
+        "C541634562",
+        "C486631144"
+      ],
+      "has Product": [
+        "1019"
+      ]
     }
   ]
 }
