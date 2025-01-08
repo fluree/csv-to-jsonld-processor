@@ -12,8 +12,8 @@ use crate::Manifest;
 pub use crate::types::{JsonLdInstance, JsonLdInstances};
 
 pub struct InstanceManager {
-    processor: processor::InstanceProcessor,
-    serializer: serializer::InstanceSerializer,
+    pub processor: processor::InstanceProcessor,
+    pub serializer: serializer::InstanceSerializer,
 }
 
 impl InstanceManager {
@@ -35,6 +35,26 @@ impl InstanceManager {
     ) -> Result<(), ProcessorError> {
         self.processor
             .process_simple_instance(step, instance_path)
+            .await
+    }
+
+    pub async fn process_subclass_instance(
+        &mut self,
+        step: &ImportStep,
+        instance_path: &str,
+    ) -> Result<(), ProcessorError> {
+        self.processor
+            .process_subclass_instance(step, instance_path)
+            .await
+    }
+
+    pub async fn process_properties_instance(
+        &mut self,
+        step: &ImportStep,
+        instance_path: &str,
+    ) -> Result<(), ProcessorError> {
+        self.processor
+            .process_properties_instance(step, instance_path)
             .await
     }
 

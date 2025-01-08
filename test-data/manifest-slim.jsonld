@@ -7,7 +7,7 @@
     }
   },
   "@type": "CSVImportManifest",
-  "@id": "Dell-Model",
+  "@id": "model/dell",
   "name": "Manifest for Dell Bill of Materials CSV Import",
   "description": "This manifest describes the process for importing a set of CSV files that describe a Dell Bill of Materials Inventory",
   "model": {
@@ -15,7 +15,7 @@
     "path": "model/",
     "sequence": [
       {
-        "path": "main.csv",
+        "path": "DataModel.csv",
         "@type": [
           "CSVImportStep",
           "BasicVocabularyStep"
@@ -39,7 +39,7 @@
         ]
       },
       {
-        "path": "material_class_values_list.csv",
+        "path": "MaterialClass.csv",
         "@type": [
           "CSVImportStep",
           "SubClassVocabularyStep"
@@ -55,29 +55,6 @@
             "onEntity": "CLASS"
           }
         ]
-      },
-      {
-        "path": "material_features.csv",
-        "@type": [
-          "CSVImportStep",
-          "PropertiesVocabularyStep"
-        ],
-        "replacePropertyIdWith": "$Property.Name",
-        "ignore": [
-          "Class Name"
-        ],
-        "extraItems": [
-          {
-            "column": "Attribute Abbreviation",
-            "mapTo": "http://example.com/dell-bom/terms/attributeAbbreviation",
-            "onEntity": "PROPERTY"
-          },
-          {
-            "column": "Before / After",
-            "mapTo": "http://example.com/dell-bom/terms/beforeAfter",
-            "onEntity": "PROPERTY"
-          }
-        ]
       }
     ]
   },
@@ -86,7 +63,7 @@
     "path": "instances/",
     "sequence": [
       {
-        "path": "products.csv",
+        "path": "Products.csv",
         "@type": [
           "CSVImportStep",
           "BasicInstanceStep"
@@ -94,7 +71,26 @@
         "instanceType": "Product"
       },
       {
-        "path": "bill_of_materials.csv",
+        "path": "Manufacturer.csv",
+        "@type": [
+          "CSVImportStep",
+          "BasicInstanceStep"
+        ],
+        "instanceType": "Manufacturer"
+      },
+      {
+        "path": "WarehouseInventory.csv",
+        "@type": [
+          "CSVImportStep",
+          "BasicInstanceStep"
+        ],
+        "instanceType": "WarehouseInventory",
+        "ignore": [
+          "Material Name"
+        ]
+      },
+      {
+        "path": "BillOfMaterials.csv",
         "@type": [
           "CSVImportStep",
           "BasicInstanceStep"
@@ -105,13 +101,13 @@
             "instanceType": "BillOfMaterialsItem",
             "newRelationshipProperty": "hasItems",
             "columns": [
-              "Quantity",
-              "has Material"
+              "quantity",
+              "has Material",
+              "has Material Class"
             ]
           }
         ],
         "ignore": [
-          "has Material Class",
           "Material Class Name",
           "Material Class Description",
           "Material Name",
@@ -126,28 +122,16 @@
         ]
       },
       {
-        "path": "materials.csv",
+        "path": "Material.csv",
         "@type": [
           "CSVImportStep",
-          "SubClassInstanceStep"
+          "BasicInstanceStep"
         ],
         "instanceType": "Material",
-        "subClassProperty": "has Material Class",
         "ignore": [
           "Manufacturer Name",
-          "Material Class Name"
-        ]
-      },
-      {
-        "path": "material_instances_with_properties.csv",
-        "@type": [
-          "CSVImportStep",
-          "PropertiesInstanceStep"
-        ],
-        "instanceType": "Material",
-        "ignore": [
-          "Material Name",
-          "Material Feature"
+          "Material Class Name",
+          "Lowest Cost Alternative Material Number"
         ]
       }
     ]

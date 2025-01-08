@@ -15,5 +15,5 @@ tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
 
 [[bin]]
-name = "csv-to-jsonld"
+name = "csv-to-jld"
 path = "src/main.rs"

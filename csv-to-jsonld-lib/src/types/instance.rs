@@ -5,12 +5,14 @@ use serde_json::{Map, Value};
 
 use crate::ProcessorError;
 
+use super::IdOpt;
+
 #[derive(Debug, Serialize, Clone)]
 pub struct JsonLdInstance {
     #[serde(rename = "@id")]
     pub id: String,
     #[serde(rename = "@type")]
-    pub type_: Vec<String>,
+    pub type_: Vec<IdOpt>,
     #[serde(flatten)]
     pub properties: Map<String, serde_json::Value>,
 }
@@ -50,8 +52,8 @@ impl JsonLdInstance {
 pub struct JsonLdInstances {
     #[serde(rename = "@context")]
     pub context: Map<String, serde_json::Value>,
-    #[serde(rename = "@graph")]
-    pub graph: Vec<JsonLdInstance>,
+    #[serde(rename = "insert")]
+    pub insert: Vec<JsonLdInstance>,
 }
 
 #[derive(Debug, Serialize)]

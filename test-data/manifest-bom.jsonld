@@ -7,7 +7,7 @@
     }
   },
   "@type": "CSVImportManifest",
-  "@id": "Dell-Model",
+  "@id": "model/dell",
   "name": "Manifest for Dell Bill of Materials CSV Import",
   "description": "This manifest describes the process for importing a set of CSV files that describe a Dell Bill of Materials Inventory",
   "model": {
@@ -86,12 +86,17 @@
     "path": "instances/",
     "sequence": [
       {
-        "path": "products.csv",
+        "path": "materials.csv",
         "@type": [
           "CSVImportStep",
-          "BasicInstanceStep"
+          "SubClassInstanceStep"
         ],
-        "instanceType": "Product"
+        "instanceType": "Material",
+        "subClassProperty": "has Material Class",
+        "ignore": [
+          "Manufacturer Name",
+          "Material Class Name"
+        ]
       },
       {
         "path": "bill_of_materials.csv",
@@ -103,7 +108,7 @@
         "pivotColumns": [
           {
             "instanceType": "BillOfMaterialsItem",
-            "newRelationshipProperty": "hasItems",
+            "newRelationshipProperty": "has Items",
             "columns": [
               "Quantity",
               "has Material"
@@ -123,31 +128,6 @@
           "has Lowest Cost Alternative Material Number",
           "Lowest Cost Alternative Material Name",
           "Lowest Cost Alternative Material Manufacturer"
-        ]
-      },
-      {
-        "path": "materials.csv",
-        "@type": [
-          "CSVImportStep",
-          "SubClassInstanceStep"
-        ],
-        "instanceType": "Material",
-        "subClassProperty": "has Material Class",
-        "ignore": [
-          "Manufacturer Name",
-          "Material Class Name"
-        ]
-      },
-      {
-        "path": "material_instances_with_properties.csv",
-        "@type": [
-          "CSVImportStep",
-          "PropertiesInstanceStep"
-        ],
-        "instanceType": "Material",
-        "ignore": [
-          "Material Name",
-          "Material Feature"
         ]
       }
     ]

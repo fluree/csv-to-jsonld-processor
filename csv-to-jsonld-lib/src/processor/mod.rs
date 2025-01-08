@@ -1,6 +1,6 @@
 use crate::error::ProcessorError;
 use crate::instance::InstanceManager;
-use crate::manifest::{InstanceStep, Manifest, ModelStep, StepType};
+use crate::manifest::{InstanceStep, Manifest, StepType};
 use crate::vocabulary::VocabularyManager;
 use crate::{contains_variant, ImportStep};
 use std::path::PathBuf;
@@ -90,12 +90,20 @@ impl Processor {
         );
         let model_path = self.resolve_path(&self.manifest.model.path);
 
+        let step_name = step.path.clone();
+
         if contains_variant!(step.types, StepType::ModelStep(_)) {
             tracing::debug!("Processing as base vocabulary data");
             self.vocabulary_manager
                 .process_vocabulary(step, model_path.to_str().unwrap())
                 .await?;
         }
+
+        tracing::debug!("At end of step: {:?}", step_name);
+        tracing::debug!(
+            "Current vocabulary: {:#?}",
+            self.vocabulary_manager.processor.vocabulary
+        );
 
         Ok(())
     }
@@ -110,15 +118,40 @@ impl Processor {
             step.types
         );
 
-        if contains_variant!(
-            &step.types,
-            StepType::InstanceStep(InstanceStep::BasicInstanceStep)
-        ) {
-            tracing::debug!("Processing as simple instance data");
-            let instance_path = self.resolve_path(&self.manifest.instances.path);
-            self.instance_manager
-                .process_simple_instance(step, instance_path.to_str().unwrap())
-                .await?;
+        let instance_path = self.resolve_path(&self.manifest.instances.path);
+
+        // Find the instance step type
+        let instance_step = step
+            .types
+            .iter()
+            .find_map(|t| match t {
+                StepType::InstanceStep(step_type) => Some(step_type),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                ProcessorError::Processing("No valid instance step type found".into())
+            })?;
+
+        // Process based on step type
+        match instance_step {
+            InstanceStep::BasicInstanceStep => {
+                tracing::debug!("Processing as basic instance data");
+                self.instance_manager
+                    .process_simple_instance(step, instance_path.to_str().unwrap())
+                    .await?;
+            }
+            InstanceStep::SubClassInstanceStep => {
+                tracing::debug!("Processing as subclass instance data");
+                self.instance_manager
+                    .process_subclass_instance(step, instance_path.to_str().unwrap())
+                    .await?;
+            }
+            InstanceStep::PropertiesInstanceStep => {
+                tracing::debug!("Processing as properties instance data");
+                self.instance_manager
+                    .process_properties_instance(step, instance_path.to_str().unwrap())
+                    .await?;
+            }
         }
 
         Ok(())

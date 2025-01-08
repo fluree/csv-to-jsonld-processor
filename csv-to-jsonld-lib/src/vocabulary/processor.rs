@@ -1,29 +1,41 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::mapping::{MappingConfig, RowValues, VocabularyColumnMapping};
 use crate::error::ProcessorError;
 use crate::manifest::{ImportStep, ModelStep, StepType};
-use crate::types::{ExtraItem, IdOpt, OnEntity, VocabularyMap, VocabularyTerm};
-use crate::utils::{map_xsd_type, to_camel_case, to_pascal_case};
+use crate::types::{IdOpt, OnEntity, PropertyDatatype, VocabularyMap, VocabularyTerm};
+use crate::utils::{map_xsd_type, to_pascal_case};
 use crate::{contains_variant, Manifest};
 
 pub struct VocabularyProcessor {
     manifest: Arc<Manifest>,
-    vocabulary: VocabularyMap,
+    pub vocabulary: VocabularyMap,
     class_properties: HashMap<IdOpt, Vec<String>>,
     is_strict: bool,
+    ignore: HashMap<String, Vec<String>>,
 }
 
 impl VocabularyProcessor {
     pub fn new(manifest: Arc<Manifest>, is_strict: bool) -> Self {
+        let ignore = manifest
+            .model
+            .sequence
+            .iter()
+            .fold(HashMap::new(), |mut acc, step| {
+                if let Some(ignores) = &step.ignore {
+                    acc.insert(step.path.clone(), ignores.clone());
+                }
+                acc
+            });
         Self {
             manifest,
             vocabulary: VocabularyMap::new(),
             class_properties: HashMap::new(),
             is_strict,
+            ignore,
         }
     }
 
@@ -57,6 +69,14 @@ impl VocabularyProcessor {
                 type_: StepType::ModelStep(ModelStep::SubClassVocabularyStep),
                 column_mapping: VocabularyColumnMapping::sub_class_vocabulary_step(),
             }
+        } else if contains_variant!(
+            &step.types,
+            StepType::ModelStep(ModelStep::PropertiesVocabularyStep)
+        ) {
+            MappingConfig {
+                type_: StepType::ModelStep(ModelStep::PropertiesVocabularyStep),
+                column_mapping: VocabularyColumnMapping::property_vocabulary_step(),
+            }
         } else {
             tracing::error!("Step Error: {:#?}", step);
             return Err(ProcessorError::Processing("Invalid step type".into()));
@@ -70,8 +90,24 @@ impl VocabularyProcessor {
                 .handle_override(override_, mapping_type)?;
         }
 
-        if let Some(replace_id_with) = &step.replace_id_with {
-            mapping.column_mapping.replace_id_with(replace_id_with)?;
+        if let Some(replace_class_id_with) = &step.replace_class_id_with {
+            mapping
+                .column_mapping
+                .replace_class_id_with(replace_class_id_with)?;
+        }
+
+        if matches!(
+            mapping.column_mapping.class_column,
+            IdOpt::ReplacementMap { .. }
+        ) {
+            tracing::debug!("Class column is a replacement map, replacing with class_id");
+            tracing::debug!("Class column: {:#?}", mapping.column_mapping.class_column);
+        }
+
+        if let Some(replace_property_id_with) = &step.replace_property_id_with {
+            mapping
+                .column_mapping
+                .replace_property_id_with(replace_property_id_with)?;
         }
 
         for extra_item in step.extra_items.drain(..) {
@@ -81,78 +117,10 @@ impl VocabularyProcessor {
                 .insert(extra_item.column.clone(), extra_item);
         }
 
-        let required_class_id_columns = match &mapping.column_mapping.class_column {
-            IdOpt::String(class_column) => vec![(class_column, "Class ID")],
-            IdOpt::ReplacementMap {
-                original_id,
-                replacement_id,
-            } => vec![
-                (original_id, original_id.as_str()),
-                (replacement_id, replacement_id.as_str()),
-            ],
-        };
-
-        // Verify all required columns exist
-        let required_columns = match &mapping.type_ {
-            StepType::ModelStep(ModelStep::BasicVocabularyStep) => vec![
-                (
-                    mapping.column_mapping.property_column.as_ref().unwrap(),
-                    "Property Name",
-                ),
-                (mapping.column_mapping.type_column.as_ref().unwrap(), "Type"),
-            ],
-            StepType::ModelStep(ModelStep::SubClassVocabularyStep) => {
-                vec![(&mapping.column_mapping.class_label_column, "Class Name")]
-            }
-            _ => return Err(ProcessorError::Processing("Invalid step type".into())),
-        };
-
-        let required_columns = required_columns
-            .into_iter()
-            .chain(required_class_id_columns)
-            .collect::<Vec<_>>();
-
-        tracing::debug!("Required columns: {:?}", required_columns);
-        tracing::debug!("Mapping config: {:#?}", mapping);
-
-        for (column, name) in required_columns.iter() {
-            if !headers.iter().any(|h| h == column.as_str()) {
-                return Err(ProcessorError::Processing(format!(
-                    "Required column '{}' not found in CSV headers",
-                    name
-                )));
-            }
-        }
-
-        let mut json_value_of_mapping = serde_json::to_value(&mapping.column_mapping).unwrap();
-        let json_object_of_mapping = json_value_of_mapping.as_object_mut().unwrap();
-        for (extra_item_column, extra_item) in mapping.column_mapping.extra_items.iter() {
-            json_object_of_mapping.insert(
-                extra_item.map_to.to_string(),
-                serde_json::Value::String(extra_item_column.clone()),
-            );
-        }
-        for (concept_to_extract, expected_csv_header) in json_object_of_mapping.iter() {
-            if concept_to_extract == "extra_items" {
-                continue;
-            }
-            if !headers
-                .iter()
-                .any(|h| h == expected_csv_header.as_str().unwrap())
-            {
-                if is_strict {
-                    return Err(ProcessorError::Processing(format!(
-                        "Column '{}' not found in CSV headers. If this is acceptable, run again without --strict",
-                        expected_csv_header
-                    )));
-                } else {
-                    tracing::warn!(
-                        "Column '{}' not found in CSV headers. If this is not expected, check your CSV file for typos or missing columns, or update the manifest to match the CSV file",
-                        expected_csv_header
-                    );
-                }
-            }
-        }
+        // Validate headers
+        mapping
+            .column_mapping
+            .validate_headers(headers, is_strict)?;
 
         Ok(mapping)
     }
@@ -162,7 +130,8 @@ impl VocabularyProcessor {
         step: ImportStep,
         model_path: &str,
     ) -> Result<(), ProcessorError> {
-        let file_path = PathBuf::from(model_path).join(&step.path);
+        let step_path = &step.path.clone();
+        let file_path = PathBuf::from(model_path).join(step_path);
         tracing::debug!("Reading vocabulary data from {:?}", file_path);
 
         let mut rdr: csv::Reader<std::fs::File> =
@@ -188,6 +157,24 @@ impl VocabularyProcessor {
 
         tracing::debug!("Vocabulary column mapping: {:?}", mapping);
 
+        let ignorable_headers = self.ignore.get(step_path);
+
+        let headers = match ignorable_headers {
+            Some(ignorable_headers) => headers
+                .iter()
+                .map(|h| {
+                    if !ignorable_headers.contains(&h.to_string()) {
+                        h
+                    } else {
+                        ""
+                    }
+                })
+                .collect(),
+            None => headers.clone(),
+        };
+
+        tracing::debug!("Filtered headers: {:?}", headers);
+
         // Process each row
         for result in rdr.records() {
             let record = result.map_err(|e| {
@@ -195,6 +182,8 @@ impl VocabularyProcessor {
             })?;
 
             let row_values = mapping.extract_values(&record, &headers)?;
+
+            tracing::debug!("Row values: {:#?}", row_values);
 
             self.process_class_term(&row_values, sub_class_of.clone())?;
             if !matches!(
@@ -211,7 +200,12 @@ impl VocabularyProcessor {
                 class_term.range = Some(
                     properties
                         .iter()
-                        .map(|p| format!("{}{}", self.manifest.model.base_iri, p))
+                        .map(|p| {
+                            PropertyDatatype::URI(Some(format!(
+                                "{}{}",
+                                self.manifest.model.base_iri, p
+                            )))
+                        })
                         .collect(),
                 );
             }
@@ -234,7 +228,7 @@ impl VocabularyProcessor {
         } = row_values;
 
         let mut extra_items_result = HashMap::new();
-        for (_, extra_item) in extra_items {
+        for extra_item in extra_items.values() {
             if matches!(extra_item.on_entity, OnEntity::Class) {
                 extra_items_result.insert(
                     extra_item.map_to.clone(),
@@ -243,135 +237,179 @@ impl VocabularyProcessor {
             }
         }
 
-        let label = if class_name.is_empty() {
-            tracing::debug!("Class name is empty, using class_id");
-            match class_id {
-                IdOpt::String(class_id) => class_id.to_string(),
-                IdOpt::ReplacementMap { replacement_id, .. } => replacement_id.to_string(),
+        // let label = if class_name.is_empty() {
+        //     tracing::debug!("Class name is empty, using class_id");
+        //     match class_id {
+        //         IdOpt::String(class_id) => class_id.to_string(),
+        //         IdOpt::ReplacementMap { replacement_id, .. } => replacement_id.to_string(),
+        //     }
+        // } else {
+        //     class_name.to_string()
+        // };
+
+        match self.vocabulary.classes.entry(class_id.clone()) {
+            Entry::Vacant(_) => {
+                let class_term = VocabularyTerm {
+                    id: class_id
+                        .normalize()
+                        .to_pascal_case()
+                        .with_base_iri(&self.manifest.model.base_iri),
+                    type_: vec!["rdfs:Class".to_string()],
+                    sub_class_of,
+                    label: class_name.map(|n| n.to_string()),
+                    comment: class_description.map(|d| d.to_string()),
+                    domain: None,
+                    range: Some(vec![]),
+                    extra_items: extra_items_result,
+                };
+
+                self.vocabulary.classes.insert(class_id.clone(), class_term);
             }
-        } else {
-            class_name.to_string()
-        };
-
-        if let std::collections::hash_map::Entry::Vacant(_) =
-            self.vocabulary.classes.entry(class_id.clone())
-        {
-            let class_term = VocabularyTerm {
-                id: class_id
-                    .to_pascal_case()
-                    .with_base_iri(&self.manifest.model.base_iri),
-                type_: vec!["rdfs:Class".to_string()],
-                sub_class_of,
-                label,
-                comment: Some(class_description.to_string()),
-                domain: None,
-                range: Some(vec![]),
-                extra_items: extra_items_result,
-            };
-
-            self.vocabulary.classes.insert(class_id.clone(), class_term);
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().update_with(VocabularyTerm {
+                    id: class_id
+                        .normalize()
+                        .to_pascal_case()
+                        .with_base_iri(&self.manifest.model.base_iri),
+                    type_: vec!["rdfs:Class".to_string()],
+                    sub_class_of,
+                    label: class_name.map(|n| n.to_string()),
+                    comment: class_description.map(|d| d.to_string()),
+                    domain: None,
+                    range: Some(vec![]),
+                    extra_items: extra_items_result,
+                })?;
+            }
         }
+
+        // if let std::collections::hash_map::Entry::Vacant(_) =
+        //     self.vocabulary.classes.entry(class_id.clone())
+        // {
+        //     let class_term = VocabularyTerm {
+        //         id: class_id
+        //             .to_pascal_case()
+        //             .with_base_iri(&self.manifest.model.base_iri),
+        //         type_: vec!["rdfs:Class".to_string()],
+        //         sub_class_of,
+        //         label,
+        //         comment: Some(class_description.to_string()),
+        //         domain: None,
+        //         range: Some(vec![]),
+        //         extra_items: extra_items_result,
+        //     };
+
+        //     tracing::debug!("Adding class term: {:#?}", class_term);
+
+        //     self.vocabulary.classes.insert(class_id.clone(), class_term);
+        // }
         Ok(())
     }
 
     fn process_property_term(&mut self, row_values: &RowValues) -> Result<(), ProcessorError> {
-        /*
-        property: &str,
-        property_desc: &str,
-        property_type: &str,
-        property_class: &str,
-        class_name: &str,
-        extra_items: HashMap<String, String>,
-         */
         let RowValues {
             property_id,
+            property_name,
             property_description,
             property_type,
             property_class,
             class_id,
-            class_name,
             extra_items,
             ..
         } = row_values;
 
-        tracing::debug!("[RowValues] class_id: {:#?}", class_id);
+        if property_name.is_some() && property_name.as_ref().unwrap() == &"MF1" {
+            tracing::debug!(
+                "[MF1] [process_property_term] row_values: {:#?}",
+                row_values
+            );
+        }
 
-        let property = property_id.unwrap();
-        let property_desc = property_description.unwrap();
-        let property_type = property_type.unwrap();
-        let property_class = property_class.unwrap();
+        let property = property_id.as_ref().unwrap();
+        let property_name = property_name.unwrap_or_default();
+        let property_desc = property_description.unwrap_or_default();
+        let property_type = property_type.unwrap_or("string"); // Default to string type
+        let property_class = property_class.unwrap_or_default();
         let extra_items = extra_items.clone();
 
-        if !property.is_empty() {
-            let xsd_type = map_xsd_type(property_type);
-            let camel_name = to_camel_case(property);
-            let range = if !property_class.is_empty() {
-                let value = format!(
-                    "{}{}",
-                    self.manifest.model.base_iri,
-                    to_pascal_case(property_class)
+        let xsd_type = map_xsd_type(property_type)?;
+        let camel_name = property.to_camel_case();
+        let range = if !property_class.is_empty() {
+            // let value = format!(
+            //     "{}{}",
+            //     self.manifest.model.base_iri,
+            //     to_pascal_case(property_class)
+            // );
+            let value = PropertyDatatype::URI(Some(format!(
+                "{}{}",
+                self.manifest.model.base_iri,
+                to_pascal_case(property_class)
+            )));
+            Some(vec![value])
+        } else {
+            Some(vec![xsd_type.clone()])
+        };
+
+        let mut extra_items_result = HashMap::new();
+        for (_, extra_item) in extra_items {
+            if matches!(extra_item.on_entity, OnEntity::Property) {
+                extra_items_result.insert(
+                    extra_item.map_to.clone(),
+                    extra_item.value.clone().unwrap_or("".to_string()),
                 );
-                Some(vec![value])
-            } else {
-                Some(vec![format!("xsd:{}", xsd_type)])
-            };
+            }
+        }
 
-            let mut extra_items_result = HashMap::new();
-            for (_, extra_item) in extra_items {
-                if matches!(extra_item.on_entity, OnEntity::Property) {
-                    extra_items_result.insert(
-                        extra_item.map_to.clone(),
-                        extra_item.value.clone().unwrap_or("".to_string()),
-                    );
+        let new_or_existing_class_id = self
+            .vocabulary
+            .classes
+            .keys()
+            .find(|k| k == &class_id)
+            .unwrap_or(class_id);
+
+        tracing::debug!(
+            "Processing property term: {} (class: {})",
+            camel_name,
+            new_or_existing_class_id
+        );
+
+        // Create property term
+        let property_term = VocabularyTerm {
+            id: camel_name.with_base_iri(&self.manifest.model.base_iri),
+            type_: vec!["rdf:Property".to_string()],
+            sub_class_of: None,
+            label: Some(property_name.to_string()),
+            comment: Some(property_desc.to_string()),
+            domain: Some(vec![new_or_existing_class_id
+                .normalize()
+                .to_pascal_case()
+                .with_base_iri(&self.manifest.model.base_iri)
+                .final_iri()]),
+            range,
+            extra_items: extra_items_result,
+        };
+
+        // If it's an ID property, store it in identifiers map
+        if matches!(xsd_type, PropertyDatatype::ID) {
+            self.vocabulary.identifiers.insert(
+                class_id.normalize().to_pascal_case().to_string(),
+                property_term,
+            );
+        } else {
+            // Otherwise store it in properties map
+            match self.vocabulary.properties.entry(camel_name.clone()) {
+                std::collections::hash_map::Entry::Vacant(_) => {
+                    self.vocabulary
+                        .properties
+                        .insert(camel_name.clone(), property_term);
+                }
+                std::collections::hash_map::Entry::Occupied(mut entry) => {
+                    entry.get_mut().update_with(property_term)?
                 }
             }
 
-            // Create property term
-            let property_term = VocabularyTerm {
-                id: IdOpt::String(format!("{}{}", self.manifest.model.base_iri, camel_name)),
-                type_: vec!["rdf:Property".to_string()],
-                sub_class_of: None,
-                label: property.to_string(),
-                comment: Some(property_desc.to_string()),
-                domain: Some(vec![class_id
-                    .to_pascal_case()
-                    .with_base_iri(&self.manifest.model.base_iri)
-                    .final_iri()]),
-                range,
-                extra_items: extra_items_result,
-            };
+            let class_entry = self.class_properties.entry(class_id.clone()).or_default();
 
-            // If it's an ID property, store it in identifiers map
-            if xsd_type == "ID" {
-                self.vocabulary
-                    .identifiers
-                    .insert(class_id.to_pascal_case().to_string(), property_term);
-            } else {
-                // Otherwise store it in properties map
-                match self
-                    .vocabulary
-                    .properties
-                    .entry(IdOpt::String(camel_name.clone()))
-                {
-                    std::collections::hash_map::Entry::Vacant(_) => {
-                        self.vocabulary
-                            .properties
-                            .insert(IdOpt::String(camel_name), property_term);
-                    }
-                    std::collections::hash_map::Entry::Occupied(mut entry) => {
-                        entry.get_mut().update_with(property_term)?
-                    }
-                }
-
-                // Track properties for each class
-                if !class_name.is_empty() {
-                    let class_entry = self.class_properties.entry(class_id.clone()).or_default();
-
-                    if !property.is_empty() {
-                        class_entry.push(to_camel_case(property));
-                    }
-                }
-            }
+            class_entry.push(camel_name.final_iri());
         }
         Ok(())
     }

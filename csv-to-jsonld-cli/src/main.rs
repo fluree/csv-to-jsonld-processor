@@ -38,6 +38,8 @@ async fn main() -> Result<()> {
     };
 
     tracing_subscriber::fmt()
+        // .with_writer(File::create("logs.txt").expect("Failed to create log file"))
+        // .with_ansi(false)
         .with_max_level(level)
         .with_target(false)
         .with_file(true)

@@ -1,6 +1,6 @@
 use crate::contains_variant;
 use crate::error::ProcessorError;
-use crate::types::{ColumnOverride, ExtraItem};
+use crate::types::{ColumnOverride, ExtraItem, PivotColumn};
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer};
 use std::fmt;
@@ -15,9 +15,11 @@ pub enum ModelStep {
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum InstanceStep {
     BasicInstanceStep,
     SubClassInstanceStep,
+    PropertiesInstanceStep,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -63,6 +65,9 @@ impl<'de> Deserialize<'de> for StepType {
                     "SubClassInstanceStep" => {
                         Ok(StepType::InstanceStep(InstanceStep::SubClassInstanceStep))
                     }
+                    "PropertiesInstanceStep" => {
+                        Ok(StepType::InstanceStep(InstanceStep::PropertiesInstanceStep))
+                    }
                     _ => Err(de::Error::unknown_variant(
                         value,
                         &[
@@ -71,6 +76,7 @@ impl<'de> Deserialize<'de> for StepType {
                             "SubClassVocabularyStep",
                             "BasicInstanceStep",
                             "SubClassInstanceStep",
+                            "PropertiesInstanceStep",
                         ],
                     )),
                 }
@@ -94,11 +100,18 @@ pub struct ImportStep {
     #[serde(default, rename = "instanceType")]
     pub instance_type: String,
     pub ignore: Option<Vec<String>>,
-    #[serde(rename = "replaceIdWith")]
-    pub replace_id_with: Option<String>,
-    // TODO: Need to consider manifest validation, because the following field is required if the types include SubClassVocabularyStep
+    #[serde(rename = "replaceClassIdWith")]
+    pub replace_class_id_with: Option<String>,
+    #[serde(rename = "replacePropertyIdWith")]
+    pub replace_property_id_with: Option<String>,
+    // Required if the types include SubClassVocabularyStep
     #[serde(rename = "subClassOf")]
     pub sub_class_of: Option<Vec<String>>,
+    // Required if the types include SubClassInstanceStep
+    #[serde(rename = "subClassProperty")]
+    pub sub_class_property: Option<String>,
+    #[serde(rename = "pivotColumns")]
+    pub pivot_columns: Option<Vec<PivotColumn>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,15 +206,25 @@ impl Manifest {
             if instance_steps.is_empty() {
                 tracing::error!("No valid instance step type found: {:?}", step.types);
                 return Err(ProcessorError::InvalidManifest(
-                    "Instance sequence steps must include InstanceStep type: BasicInstanceStep or SubClassInstanceStep".into(),
+                    "Instance sequence steps must include InstanceStep type: BasicInstanceStep, SubClassInstanceStep, or PropertiesInstanceStep".into(),
                 ));
             }
 
             if instance_steps.len() > 1 {
                 tracing::error!("Multiple instance step types found: {:?}", step.types);
                 return Err(ProcessorError::InvalidManifest(
-                    "Instance sequence steps must include only one InstanceStep type: BasicInstanceStep or SubClassInstanceStep".into(),
+                    "Instance sequence steps must include only one InstanceStep type: BasicInstanceStep, SubClassInstanceStep, or PropertiesInstanceStep".into(),
                 ));
+            }
+
+            // Validate SubClassInstanceStep has required subClassProperty
+            if let StepType::InstanceStep(InstanceStep::SubClassInstanceStep) = instance_steps[0] {
+                if step.sub_class_property.is_none() {
+                    tracing::error!("SubClassInstanceStep requires subClassProperty field");
+                    return Err(ProcessorError::InvalidManifest(
+                        "SubClassInstanceStep requires subClassProperty field".into(),
+                    ));
+                }
             }
         }
 

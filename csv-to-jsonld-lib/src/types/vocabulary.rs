@@ -1,8 +1,10 @@
-use crate::utils::are_conflicting;
+use crate::utils::{are_conflicting, normalize_label_for_iri, to_camel_case};
 use crate::{error::ProcessorError, utils::to_pascal_case};
 use serde::{Serialize, Serializer};
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, fmt::Display};
+
+use super::PropertyDatatype;
 
 #[derive(Debug, Clone, Eq)]
 pub enum IdOpt {
@@ -19,9 +21,9 @@ impl Hash for IdOpt {
         match self {
             IdOpt::String(ref s) => s.hash(state),
             IdOpt::ReplacementMap {
-                ref replacement_id, ..
+                ref original_id, ..
             } => {
-                replacement_id.hash(state);
+                original_id.hash(state);
             }
         }
     }
@@ -33,15 +35,28 @@ impl PartialEq for IdOpt {
             (IdOpt::String(ref s1), IdOpt::String(ref s2)) => s1 == s2,
             (
                 IdOpt::ReplacementMap {
+                    original_id: ref o1,
                     replacement_id: ref r1,
-                    ..
                 },
                 IdOpt::ReplacementMap {
+                    original_id: ref o2,
                     replacement_id: ref r2,
-                    ..
                 },
-            ) => r1 == r2,
-            _ => false,
+            ) => o1 == o2 || r1 == r2,
+            (
+                IdOpt::String(ref s),
+                IdOpt::ReplacementMap {
+                    original_id: ref o,
+                    replacement_id: ref r,
+                },
+            ) => s == r || s == o,
+            (
+                IdOpt::ReplacementMap {
+                    original_id: ref o,
+                    replacement_id: ref r,
+                },
+                IdOpt::String(ref s),
+            ) => s == r || s == o,
         }
     }
 }
@@ -57,6 +72,19 @@ impl IdOpt {
         }
     }
 
+    pub fn normalize(&self) -> Self {
+        match self {
+            IdOpt::String(ref s) => IdOpt::String(normalize_label_for_iri(s)),
+            IdOpt::ReplacementMap {
+                original_id,
+                replacement_id,
+            } => IdOpt::ReplacementMap {
+                original_id: original_id.clone(),
+                replacement_id: normalize_label_for_iri(replacement_id),
+            },
+        }
+    }
+
     pub fn to_pascal_case(&self) -> Self {
         match self {
             IdOpt::String(ref s) => IdOpt::String(to_pascal_case(s)),
@@ -66,6 +94,19 @@ impl IdOpt {
             } => IdOpt::ReplacementMap {
                 original_id: original_id.clone(),
                 replacement_id: to_pascal_case(replacement_id),
+            },
+        }
+    }
+
+    pub fn to_camel_case(&self) -> Self {
+        match self {
+            IdOpt::String(ref s) => IdOpt::String(to_camel_case(s)),
+            IdOpt::ReplacementMap {
+                original_id,
+                replacement_id,
+            } => IdOpt::ReplacementMap {
+                original_id: original_id.clone(),
+                replacement_id: to_camel_case(replacement_id),
             },
         }
     }
@@ -127,23 +168,32 @@ impl Serialize for IdOpt {
 pub struct VocabularyTerm {
     pub id: IdOpt,
     pub type_: Vec<String>,
-    pub label: String,
+    pub label: Option<String>,
     pub sub_class_of: Option<Vec<String>>,
     pub comment: Option<String>,
     pub domain: Option<Vec<String>>,
-    pub range: Option<Vec<String>>,
+    pub range: Option<Vec<PropertyDatatype>>,
     pub extra_items: HashMap<String, String>,
 }
 
 impl VocabularyTerm {
     pub fn update_with(&mut self, other_entry: VocabularyTerm) -> Result<(), ProcessorError> {
-        if self.label != other_entry.label {
+        if (self.label.is_some() && other_entry.label.is_some())
+            && self.label.as_ref().unwrap() != other_entry.label.as_ref().unwrap()
+        {
+            tracing::debug!("CONFLICT LABEL!\n{:#?}\n\nvs\n\n{:#?}", self, other_entry);
             return Err(ProcessorError::Processing(format!(
                 "The CSV uses conflicting labels for the same term '{}':\n\
                      - Label 1: {}\n\
                      - Label 2: {}",
-                self.id, self.label, other_entry.label
+                self.id,
+                self.label.as_ref().unwrap(),
+                other_entry.label.unwrap()
             )));
+        }
+
+        if self.label.is_none() {
+            self.label = Some(other_entry.label.clone().unwrap())
         }
 
         if are_conflicting(&self.comment, &other_entry.comment) {
@@ -240,10 +290,12 @@ impl Serialize for VocabularyTerm {
                 ),
             );
         }
-        map.insert(
-            "rdfs:label".to_string(),
-            serde_json::Value::String(self.label.clone()),
-        );
+        if let Some(label) = &self.label {
+            map.insert(
+                "rdfs:label".to_string(),
+                serde_json::Value::String(label.clone()),
+            );
+        }
         if let Some(comment) = &self.comment {
             map.insert(
                 "rdfs:comment".to_string(),
@@ -269,7 +321,7 @@ impl Serialize for VocabularyTerm {
                     range
                         .clone()
                         .into_iter()
-                        .map(serde_json::Value::String)
+                        .map(|value| serde_json::to_value(&value).unwrap())
                         .collect(),
                 ),
             );
@@ -322,9 +374,9 @@ impl VocabularyMap {
     }
 
     /// Get the identifier property label for a given class
-    pub fn get_identifier_label(&self, class_name: &String) -> Option<&str> {
+    pub fn get_identifier_label(&self, class_name: &String) -> Option<&String> {
         self.identifiers
             .get(class_name)
-            .map(|term| term.label.as_str())
+            .map(|term| term.label.as_ref().unwrap())
     }
 }

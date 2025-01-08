@@ -11,7 +11,7 @@ use crate::types::VocabularyMap;
 use crate::Manifest;
 
 pub struct VocabularyManager {
-    processor: processor::VocabularyProcessor,
+    pub processor: processor::VocabularyProcessor,
     serializer: serializer::VocabularySerializer,
 }
 

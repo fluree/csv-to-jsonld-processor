@@ -6,7 +6,7 @@ use std::sync::Arc;
 use serde_json::Map;
 
 use crate::error::ProcessorError;
-use crate::types::{IdOpt, JsonLdInstance, JsonLdInstances};
+use crate::types::{IdOpt, JsonLdInstance, JsonLdInstances, PropertyDatatype};
 use crate::{Manifest, VocabularyMap};
 
 pub struct InstanceSerializer {
@@ -41,6 +41,11 @@ impl InstanceSerializer {
 
         // Add property mappings from vocabulary
         for prop in vocabulary.properties.values() {
+            let label = if let Some(label) = &prop.label {
+                label.clone()
+            } else {
+                continue;
+            };
             let mut property_context = serde_json::Map::new();
             let property_iri = match &prop.id {
                 IdOpt::String(ref iri) => iri.clone(),
@@ -50,23 +55,20 @@ impl InstanceSerializer {
 
             // If range is a class (not xsd:*), mark as @id type
             if let Some(range) = &prop.range {
-                if range.iter().any(|r| !r.starts_with("xsd:")) {
+                if range.iter().any(|r| matches!(r, PropertyDatatype::ID)) {
                     property_context.insert(
                         "@type".to_string(),
                         serde_json::Value::String("@id".to_string()),
                     );
-                } else if range.iter().any(|r| r.starts_with("xsd:")) {
+                } else if !range.is_empty() {
                     property_context.insert(
                         "@type".to_string(),
-                        serde_json::Value::String(range[0].clone()),
+                        serde_json::to_value(range[0].clone()).unwrap(),
                     );
                 }
             }
 
-            context.insert(
-                prop.label.clone(),
-                serde_json::Value::Object(property_context),
-            );
+            context.insert(label, serde_json::Value::Object(property_context));
         }
 
         context
@@ -80,7 +82,7 @@ impl InstanceSerializer {
     ) -> Result<(), ProcessorError> {
         let instances = JsonLdInstances {
             context: self.create_context(vocabulary),
-            graph: instances.values().cloned().collect(),
+            insert: instances.values().cloned().collect(),
         };
 
         let instances_json = serde_json::to_string_pretty(&instances).map_err(|e| {
