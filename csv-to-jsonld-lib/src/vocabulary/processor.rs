@@ -317,9 +317,9 @@ impl VocabularyProcessor {
             ..
         } = row_values;
 
-        if property_name.is_some() && property_name.as_ref().unwrap() == &"MF1" {
+        if property_name.is_some() && property_name.as_ref().unwrap() == &"subsidiary_of" {
             tracing::debug!(
-                "[MF1] [process_property_term] row_values: {:#?}",
+                "[subsidiary_of] [process_property_term] row_values: {:#?}",
                 row_values
             );
         }

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::{types::PropertyDatatype, ProcessorError};
 
-pub const DATE_FORMATS: [&str; 9] = [
+pub const DATE_FORMATS: [&str; 15] = [
     "%Y-%m-%d",          // 2024-06-17
     "%Y/%m/%d",          // 2024/06/17
     "%m-%d-%Y",          // 06-17-2024
@@ -12,6 +12,12 @@ pub const DATE_FORMATS: [&str; 9] = [
     "%Y-%m-%d %H:%M:%S", // 2024-06-17 12:30:00
     "%b %d, %Y",         // Jun 17, 2024
     "%B %d, %Y",         // June 17, 2024
+    "%Y",                // 2024 (assume Jan 1 by default)
+    "%Y-%m",             // 2024-06 (assume the first day of the month)
+    "%Y/%m",             // 2024/06 (assume the first day of the month)
+    "%b %Y",             // Jun 2024 (assume the first day of the month)
+    "%B %Y",             // June 2024 (assume the first day of the month)
+    "%m-%Y",             // 06-2024 (assume the first day of the month)
 ];
 
 /// Convert a string to PascalCase

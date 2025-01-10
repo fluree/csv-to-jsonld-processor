@@ -19,6 +19,7 @@ pub enum PropertyDatatype {
     Decimal,
     Integer,
     Date,
+    Boolean,
 }
 
 impl FromStr for PropertyDatatype {
@@ -26,12 +27,14 @@ impl FromStr for PropertyDatatype {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_lowercase().as_str() {
-            "@id" => Ok(PropertyDatatype::ID),
-            "uri" => Ok(PropertyDatatype::URI(None)),
-            "string" => Ok(PropertyDatatype::String),
+            "primary key identifier" | "@id" => Ok(PropertyDatatype::ID),
+            // TODO: Need to handle "picklist" separately
+            "foreign key reference" | "uri" | "picklist" => Ok(PropertyDatatype::URI(None)),
+            "string" | "" => Ok(PropertyDatatype::String),
             "float" => Ok(PropertyDatatype::Decimal),
             "integer" => Ok(PropertyDatatype::Integer),
-            "date" => Ok(PropertyDatatype::Date),
+            "date/time" | "date" => Ok(PropertyDatatype::Date),
+            "boolean" => Ok(PropertyDatatype::Boolean),
             _ => Err(ProcessorError::Processing(format!(
                 "Invalid CSV datatype: {} [Expected: @id, URI, String, Float, Integer, Date]",
                 s.trim().to_lowercase().as_str()
@@ -90,6 +93,7 @@ impl Serialize for PropertyDatatype {
             PropertyDatatype::Decimal => "xsd:decimal",
             PropertyDatatype::Integer => "xsd:integer",
             PropertyDatatype::Date => "xsd:date",
+            PropertyDatatype::Boolean => "xsd:boolean",
         };
         serializer.serialize_str(xsd_value)
     }

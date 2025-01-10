@@ -90,6 +90,7 @@ impl<'de> Deserialize<'de> for StepType {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct ImportStep {
+    #[serde(default)]
     pub path: String,
     #[serde(rename = "@type")]
     pub types: Vec<StepType>,
@@ -112,13 +113,16 @@ pub struct ImportStep {
     pub sub_class_property: Option<String>,
     #[serde(rename = "pivotColumns")]
     pub pivot_columns: Option<Vec<PivotColumn>>,
+    #[serde(default, rename = "namespaceIris")]
+    pub namespace_iris: bool,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ImportSection {
-    #[serde(rename = "baseIRI")]
+    #[serde(default, rename = "baseIRI")]
     pub base_iri: String,
+    #[serde(default)]
     pub path: String,
     pub sequence: Vec<ImportStep>,
 }

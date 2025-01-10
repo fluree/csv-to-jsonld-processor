@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::error::ProcessorError;
 use crate::manifest::ImportStep;
 use crate::types::{Header, IdOpt, JsonLdInstance, PivotColumn, PropertyDatatype, VocabularyMap};
-use crate::utils::DATE_FORMATS;
+use crate::utils::{to_pascal_case, DATE_FORMATS};
 use crate::Manifest;
 
 pub struct InstanceProcessor {
@@ -68,6 +68,16 @@ impl InstanceProcessor {
         let mut final_headers = Vec::new();
 
         for header in headers {
+            // Skip if it's an empty string, unless on strict mode
+            if header.is_empty() {
+                tracing::warn!(
+                    "Empty column found in CSV for class: {}",
+                    class_type
+                );
+                final_headers.push(None);
+                continue;
+            }
+
             // Skip if it's the identifier column
             if header == identifier_label {
                 let final_header = Header {
@@ -223,7 +233,15 @@ impl InstanceProcessor {
         instance_path: &str,
     ) -> Result<(), ProcessorError> {
         // Get the class type from the manifest
-        let class_type = step.instance_type.clone();
+        let mut class_type = step.instance_type.clone();
+
+        if class_type.is_empty() {
+            let file_path = PathBuf::from(&step.path);
+            let file_name = file_path.file_stem().unwrap().to_str().unwrap();
+            tracing::debug!("File name: {:?}", file_name);
+            class_type = to_pascal_case(file_name);
+            tracing::warn!("No explicit instance type provided for CSV at path: {}. Attempting to use CSV name as default: {}", &step.path, &class_type);
+        }
 
         // Get the vocabulary map
         let vocab = self.vocabulary.as_ref().ok_or_else(|| {
@@ -232,11 +250,14 @@ impl InstanceProcessor {
 
         tracing::debug!("Getting identifier label for class '{}'", class_type);
 
+        // Check for an override column for identifier label
+        let override_label = step.overrides.iter().find(|over_ride| over_ride.map_to == "@id").map(|over_ride| &over_ride.column);
+
         // Get the identifier property for this class
-        let identifier_label = vocab.get_identifier_label(&class_type).ok_or_else(|| {
+        let identifier_label = vocab.get_identifier_label(&class_type).or(override_label).ok_or_else(|| {
             tracing::debug!("[Error finding identifier label] {:#?}", vocab.identifiers.keys());
             ProcessorError::Processing(format!(
-                "No identifier property found for class '{}'. To import instances of this class, your data model CSVs must indicate which column of the instance data will be used as the identifier (\"@id\") for instances of this class.",
+                "No identifier property found for class '{}'. To import instances of this class, your data model CSVs must indicate which column of the instance data will be used as the identifier (\"@id\") for instances of this class. Or, you must provide an \"override\" where the appropriate column maps to \"@id\".",
                 class_type
             ))
         })?;
@@ -295,7 +316,7 @@ impl InstanceProcessor {
         tracing::debug!("[Process_simple_instance] Headers: {:#?}", headers);
 
         // Process each row
-        for result in rdr.records() {
+        for (result_row_num, result) in rdr.records().enumerate() {
             let record = result.map_err(|e| {
                 ProcessorError::Processing(format!("Failed to read CSV record: {}", e))
             })?;
@@ -335,37 +356,63 @@ impl InstanceProcessor {
 
                             let final_value = match header.datatype {
                                 PropertyDatatype::ID => {
-                                    serde_json::Value::String(value.to_string())
+                                    // We have already set the ID / identifier value above and can skip a header of type ID
+                                    continue;
                                 }
                                 PropertyDatatype::Date => {
+                                    let trimmed_value = value.trim();
                                     let date = DATE_FORMATS
                                         .iter()
                                         .find_map(|fmt| {
-                                            chrono::NaiveDate::parse_from_str(value, fmt).ok()
+                                            // First try exact parsing
+                                            if let Ok(date) = chrono::NaiveDate::parse_from_str(trimmed_value, fmt) {
+                                                return Some(date);
+                                            }
+                                            
+                                            // Handle partial dates
+                                            match *fmt {
+                                                // Year only - default to Jan 1
+                                                "%Y" => {
+                                                    trimmed_value.parse::<i32>()
+                                                        .ok()
+                                                        .and_then(|year| {
+                                                            chrono::NaiveDate::from_ymd_opt(
+                                                                year,
+                                                                1,  // January
+                                                                1   // 1st
+                                                            )
+                                                        })
+                                                },
+                                                // Year-month formats - default to 1st of month
+                                                "%Y-%m" | "%Y/%m" | "%b %Y" | "%B %Y" | "%m-%Y" => {
+                                                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
+                                                        &format!("{}-01", trimmed_value.replace("/", "-")),
+                                                        "%Y-%m-%d"
+                                                    ) {
+                                                        Some(parsed)
+                                                    } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
+                                                        &format!("01 {}", trimmed_value),
+                                                        "%d %B %Y"
+                                                    ) {
+                                                        Some(parsed)
+                                                    } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
+                                                        &format!("01 {}", trimmed_value),
+                                                        "%d %b %Y"
+                                                    ) {
+                                                        Some(parsed)
+                                                    } else {
+                                                        None
+                                                    }
+                                                },
+                                                _ => None
+                                            }
                                         })
                                         .ok_or_else(|| {
                                             ProcessorError::Processing(format!(
-                                                "Failed to parse date {}",
+                                                "Failed to parse date {:#?}",
                                                 value
                                             ))
                                         })?;
-                                    // let date = {
-                                    //     let mut date_result = None;
-                                    //     for format in DATE_FORMATS {
-                                    //         if let Ok(date) =
-                                    //             chrono::NaiveDate::parse_from_str(value, format)
-                                    //         {
-                                    //             date_result = Some(date);
-                                    //             break;
-                                    //         }
-                                    //     }
-                                    //     date_result.ok_or_else(|| {
-                                    //         ProcessorError::Processing(format!(
-                                    //             "Failed to parse date {}",
-                                    //             value
-                                    //         ))
-                                    //     })?
-                                    // };
                                     serde_json::Value::String(date.format("%Y-%m-%d").to_string())
                                 }
                                 PropertyDatatype::Integer => {
@@ -388,6 +435,19 @@ impl InstanceProcessor {
                                 }
                                 PropertyDatatype::String => {
                                     serde_json::Value::String(value.to_string())
+                                }
+                                PropertyDatatype::Boolean => {
+                                    let cleaned_value = value.to_lowercase();
+                                    if cleaned_value == "true" || cleaned_value == "false" {
+                                        serde_json::Value::Bool(cleaned_value == "true")
+                                    } else {
+                                        return Err(ProcessorError::Processing(format!(
+                                            "[Column: {}, Row: {}], Invalid boolean value: {}",
+                                            header.name,
+                                            result_row_num + 1,
+                                            value
+                                        )));
+                                    }
                                 }
                                 PropertyDatatype::URI(_) => {
                                     let class_match = self
@@ -459,7 +519,7 @@ impl InstanceProcessor {
                 properties,
             };
 
-            tracing::debug!("Updating or inserting instance: {:#?}", instance);
+            tracing::trace!("Updating or inserting instance: {:#?}", instance);
 
             self.update_or_insert_instance(instance)?;
         }

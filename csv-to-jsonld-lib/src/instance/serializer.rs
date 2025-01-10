@@ -28,16 +28,20 @@ impl InstanceSerializer {
         );
 
         // Add model baseIRI for term resolution
-        context.insert(
-            "@vocab".to_string(),
-            serde_json::Value::String(self.manifest.model.base_iri.clone()),
-        );
+        if !self.manifest.model.base_iri.is_empty() {
+            context.insert(
+                "@vocab".to_string(),
+                serde_json::Value::String(self.manifest.model.base_iri.clone()),
+            );
+        }
 
         // Add instance baseIRI for reference resolution
-        context.insert(
-            "@base".to_string(),
-            serde_json::Value::String(self.manifest.instances.base_iri.clone()),
-        );
+        if !self.manifest.instances.base_iri.is_empty() {
+            context.insert(
+                "@base".to_string(),
+                serde_json::Value::String(self.manifest.instances.base_iri.clone()),
+            );
+        }
 
         // Add property mappings from vocabulary
         for prop in vocabulary.properties.values() {
@@ -55,7 +59,7 @@ impl InstanceSerializer {
 
             // If range is a class (not xsd:*), mark as @id type
             if let Some(range) = &prop.range {
-                if range.iter().any(|r| matches!(r, PropertyDatatype::ID)) {
+                if range.iter().any(|r| matches!(r, PropertyDatatype::URI(_))) {
                     property_context.insert(
                         "@type".to_string(),
                         serde_json::Value::String("@id".to_string()),
@@ -83,6 +87,7 @@ impl InstanceSerializer {
         let instances = JsonLdInstances {
             context: self.create_context(vocabulary),
             insert: instances.values().cloned().collect(),
+            ledger: "".to_string(),
         };
 
         let instances_json = serde_json::to_string_pretty(&instances).map_err(|e| {

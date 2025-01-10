@@ -20,12 +20,13 @@ impl VocabularySerializer {
         vocabulary: VocabularyMap,
         output_path: &PathBuf,
     ) -> Result<(), ProcessorError> {
-        let ledger = self.manifest.id.clone();
+        let ledger = "".to_string();
         let label = self.manifest.name.clone();
         let comment = self.manifest.description.clone();
 
         let insert = FlureeDataModel {
             type_: vec!["f:DataModel".to_string()],
+            id: self.manifest.id.clone(),
             label,
             comment,
             classes: vocabulary.classes.into_values().collect(),

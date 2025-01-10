@@ -178,9 +178,7 @@ pub struct VocabularyTerm {
 
 impl VocabularyTerm {
     pub fn update_with(&mut self, other_entry: VocabularyTerm) -> Result<(), ProcessorError> {
-        if (self.label.is_some() && other_entry.label.is_some())
-            && self.label.as_ref().unwrap() != other_entry.label.as_ref().unwrap()
-        {
+        if are_conflicting(&self.label, &other_entry.label) {
             tracing::debug!("CONFLICT LABEL!\n{:#?}\n\nvs\n\n{:#?}", self, other_entry);
             return Err(ProcessorError::Processing(format!(
                 "The CSV uses conflicting labels for the same term '{}':\n\
@@ -238,7 +236,7 @@ impl VocabularyTerm {
 
         for (key, value) in &other_entry.extra_items {
             if let Some(this_value) = self.extra_items.get(key) {
-                if value != this_value {
+                if this_value != value && !this_value.is_empty() && !value.is_empty() {
                     return Err(ProcessorError::Processing(format!(
                         "The CSV uses conflicting values for the same term '{}':\n\
                              - Key: {}\n\
@@ -337,6 +335,8 @@ impl Serialize for VocabularyTerm {
 
 #[derive(Debug, Serialize)]
 pub struct FlureeDataModel {
+    #[serde(rename = "@id")]
+    pub id: String,
     #[serde(rename = "rdfs:label")]
     pub label: String,
     #[serde(rename = "rdfs:comment")]

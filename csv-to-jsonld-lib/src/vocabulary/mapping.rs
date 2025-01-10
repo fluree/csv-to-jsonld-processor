@@ -440,6 +440,7 @@ impl VocabularyColumnMapping {
                 "Property.ID" => {
                     self.property_column = Some(IdOpt::String(override_.column.clone()))
                 }
+                "Property.Name" => self.property_name_column = Some(override_.column.clone()),
                 "Property.Description" => {
                     self.property_description_column = Some(override_.column.clone())
                 }

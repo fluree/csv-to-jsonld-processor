@@ -50,6 +50,7 @@ impl JsonLdInstance {
 
 #[derive(Debug, Serialize)]
 pub struct JsonLdInstances {
+    pub ledger: String,
     #[serde(rename = "@context")]
     pub context: Map<String, serde_json::Value>,
     #[serde(rename = "insert")]
