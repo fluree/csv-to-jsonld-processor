@@ -144,16 +144,15 @@ impl VocabularyProcessor {
             })?;
 
         // Get headers and build column mapping
-        let headers = rdr
-            .headers()
-            .map_err(|e| ProcessorError::Processing(format!("Failed to read CSV headers: {}", e)))?
-            .clone();
+        let headers = rdr.headers().map_err(|e| {
+            ProcessorError::Processing(format!("Failed to read CSV headers: {}", e))
+        })?;
 
         tracing::debug!("CSV headers: {:?}", headers);
 
         let sub_class_of = step.sub_class_of.clone();
 
-        let mapping = Self::from_headers(&headers, step, self.is_strict)?;
+        let mapping = Self::from_headers(headers, step, self.is_strict)?;
 
         tracing::debug!("Vocabulary column mapping: {:?}", mapping);
 

@@ -10,7 +10,7 @@ use super::IdOpt;
 #[derive(Debug, Serialize, Clone)]
 pub struct JsonLdInstance {
     #[serde(rename = "@id")]
-    pub id: String,
+    pub id: IdOpt,
     #[serde(rename = "@type")]
     pub type_: Vec<IdOpt>,
     #[serde(flatten)]

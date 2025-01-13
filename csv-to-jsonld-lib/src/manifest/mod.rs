@@ -113,8 +113,6 @@ pub struct ImportStep {
     pub sub_class_property: Option<String>,
     #[serde(rename = "pivotColumns")]
     pub pivot_columns: Option<Vec<PivotColumn>>,
-    #[serde(default, rename = "namespaceIris")]
-    pub namespace_iris: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -122,6 +120,8 @@ pub struct ImportStep {
 pub struct ImportSection {
     #[serde(default, rename = "baseIRI")]
     pub base_iri: String,
+    #[serde(default, rename = "namespaceIris")]
+    pub namespace_iris: bool,
     #[serde(default)]
     pub path: String,
     pub sequence: Vec<ImportStep>,

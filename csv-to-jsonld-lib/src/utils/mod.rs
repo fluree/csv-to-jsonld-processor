@@ -56,6 +56,25 @@ pub fn to_camel_case(s: &str) -> String {
     }
 }
 
+/// Convert PascalCase names to kebab-case
+pub fn to_kebab_case(s: &str) -> String {
+    let mut result = String::new();
+    let input = to_pascal_case(s);
+
+    for (i, c) in input.chars().enumerate() {
+        if c.is_uppercase() {
+            if i > 0 {
+                result.push('-');
+            }
+            result.push(c.to_ascii_lowercase());
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
 // pub fn get_hash_id<T: Hash>(entity: T) -> String {
 //     let mut hasher = DefaultHasher::new();
 //     entity.hash(&mut hasher);

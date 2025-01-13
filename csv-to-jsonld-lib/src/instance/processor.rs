@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::error::ProcessorError;
 use crate::manifest::ImportStep;
 use crate::types::{Header, IdOpt, JsonLdInstance, PivotColumn, PropertyDatatype, VocabularyMap};
-use crate::utils::{to_pascal_case, DATE_FORMATS};
+use crate::utils::{to_kebab_case, to_pascal_case, DATE_FORMATS};
 use crate::Manifest;
 
 pub struct InstanceProcessor {
@@ -15,6 +15,7 @@ pub struct InstanceProcessor {
     vocabulary: Option<VocabularyMap>,
     is_strict: bool,
     ignore: HashMap<String, Vec<String>>,
+    is_namespace_iris: bool,
 }
 
 impl InstanceProcessor {
@@ -29,12 +30,14 @@ impl InstanceProcessor {
                 }
                 acc
             });
+        let is_namespace_iris = manifest.instances.namespace_iris;
         Self {
             manifest,
             instances: HashMap::new(),
             vocabulary: None,
             is_strict,
             ignore,
+            is_namespace_iris
         }
     }
 
@@ -322,9 +325,13 @@ impl InstanceProcessor {
             })?;
 
             // Get the identifier value
-            let id = record
+            let mut id = record
                 .get(id_column_index)
-                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?;
+                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?.to_string();
+
+            if self.is_namespace_iris {
+                id = format!("{}/{}", to_kebab_case(&class_type), &id);
+            }
 
             let mut properties = serde_json::Map::new();
 
@@ -354,7 +361,7 @@ impl InstanceProcessor {
                                     })
                                 });
 
-                            let final_value = match header.datatype {
+                            let final_value = match &header.datatype {
                                 PropertyDatatype::ID => {
                                     // We have already set the ID / identifier value above and can skip a header of type ID
                                     continue;
@@ -438,8 +445,8 @@ impl InstanceProcessor {
                                 }
                                 PropertyDatatype::Boolean => {
                                     let cleaned_value = value.to_lowercase();
-                                    if cleaned_value == "true" || cleaned_value == "false" {
-                                        serde_json::Value::Bool(cleaned_value == "true")
+                                    if cleaned_value == "true" || cleaned_value == "false" || cleaned_value == "1" || cleaned_value == "0" || cleaned_value == "yes" || cleaned_value == "no" {
+                                        serde_json::Value::Bool(cleaned_value == "true" || cleaned_value == "1" || cleaned_value == "yes")
                                     } else {
                                         return Err(ProcessorError::Processing(format!(
                                             "[Column: {}, Row: {}], Invalid boolean value: {}",
@@ -449,26 +456,38 @@ impl InstanceProcessor {
                                         )));
                                     }
                                 }
-                                PropertyDatatype::URI(_) => {
-                                    let class_match = self
+                                PropertyDatatype::URI(target_class) => {
+                                    let class_match = match target_class {
+                                        Some(target_class) => self
                                         .vocabulary
                                         .as_ref()
                                         .unwrap()
                                         .classes
                                         .iter()
-                                        .find_map(|(id, _)| match id {
-                                            IdOpt::String(string_id) if string_id == value => Some(id.clone()),
-                                            IdOpt::ReplacementMap { original_id, .. } if original_id == value => {
-                                                Some(id.clone())
+                                        .find_map(|(id, _)| {
+                                                let final_id = id.normalize().to_pascal_case().with_base_iri(&self.manifest.model.base_iri);
+                                                match final_id {
+                                                IdOpt::String(string_id) if &string_id == target_class => Some(id.clone()),
+                                                IdOpt::ReplacementMap { original_id, .. } if &original_id == target_class => {
+                                                    Some(id.clone())
+                                                }
+                                                _ => None,
                                             }
-                                            _ => None,
-                                        });
+                                        }),
+                                        None => None
+                                    };
                                     
                                     if let Some(class_id) = class_match {
-                                        tracing::debug!("Found class match: {:#?} for value: {}", class_id, value);
-                                        serde_json::Value::String(class_id.normalize().to_pascal_case().final_iri())
+                                        // tracing::debug!("Found class match: {:#?} for value: {}", class_id, value);
+                                        // serde_json::Value::String(class_id.normalize().to_pascal_case().final_iri())
+                                        if self.is_namespace_iris {
+                                            let iri = format!("{}/{}", to_kebab_case(class_id.to_string().as_ref()), value);
+                                            serde_json::Value::String(iri)
+                                        } else {
+                                            serde_json::Value::String(value.to_string())
+                                        }
                                     } else {
-                                        serde_json::Value::String(value.to_string())
+                                            serde_json::Value::String(value.to_string())    
                                     }
                                 }
                             };
@@ -488,7 +507,7 @@ impl InstanceProcessor {
                                 properties.insert(header.name.clone(), final_value);
 
                                 let new_instance = JsonLdInstance {
-                                    id: id.to_string(),
+                                    id: IdOpt::String(id.to_string()),
                                     type_: vec![IdOpt::String(pivot_column_match.instance_type.clone())],
                                     properties
                                 };
@@ -514,7 +533,7 @@ impl InstanceProcessor {
             }
 
             let instance = JsonLdInstance {
-                id: id.to_string(),
+                id: IdOpt::String(id),
                 type_: vec![IdOpt::String(class_type.clone())],
                 properties,
             };
@@ -719,9 +738,13 @@ impl InstanceProcessor {
             })?;
 
             // Get the identifier value
-            let id = record
+            let mut id = record
                 .get(id_column_index)
-                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?;
+                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?.to_string();
+
+            if self.is_namespace_iris {
+                id = format!("{}/{}", to_kebab_case(&parent_class_type), id);
+            }
 
             // Get the subclass reference
             let subclass_ref = record
@@ -791,7 +814,7 @@ impl InstanceProcessor {
 
             // Create instance with both parent class and subclass types
             let instance = JsonLdInstance {
-                id: id.to_string(),
+                id: IdOpt::String(id),
                 type_: vec![IdOpt::String(parent_class_type.clone()), subclass_ref],
                 properties,
             };
@@ -890,9 +913,13 @@ impl InstanceProcessor {
                 ProcessorError::Processing(format!("Failed to read CSV record: {}", e))
             })?;
 
-            let entity_id = record
+            let mut entity_id = record
                 .get(entity_id_index)
-                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?;
+                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?.to_string();
+
+            if self.is_namespace_iris {
+                entity_id = format!("{}/{}", to_kebab_case(&class_type), entity_id);
+            }
 
             let property_id = record
                 .get(property_id_index)
@@ -949,7 +976,7 @@ impl InstanceProcessor {
                         serde_json::Value::String(property_value.to_string()),
                     );
                     JsonLdInstance {
-                        id: entity_id.to_string(),
+                        id: IdOpt::String(entity_id),
                         type_: vec![IdOpt::String(class_type.clone())],
                         properties,
                     }
@@ -965,7 +992,7 @@ impl InstanceProcessor {
     ) -> Result<(), ProcessorError> {
         let id = instance.id.clone();
 
-        match self.instances.entry(id) {
+        match self.instances.entry(id.to_string()) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().update_with(instance)?;
             }
