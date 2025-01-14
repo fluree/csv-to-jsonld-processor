@@ -42,6 +42,7 @@ impl VocabularySerializer {
                 "rdfs:domain": { "@type": "@id" },
                 "rdfs:range": { "@type": "@id" },
                 "rdfs:subClassOf": { "@type": "@id" },
+                "f:oneOf": { "@type": "@id" },
             }),
             ledger,
             insert,

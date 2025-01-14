@@ -260,6 +260,7 @@ impl VocabularyProcessor {
                     domain: None,
                     range: Some(vec![]),
                     extra_items: extra_items_result,
+                    one_of: None,
                 };
 
                 self.vocabulary.classes.insert(class_id.clone(), class_term);
@@ -277,6 +278,7 @@ impl VocabularyProcessor {
                     domain: None,
                     range: Some(vec![]),
                     extra_items: extra_items_result,
+                    one_of: None,
                 })?;
             }
         }
@@ -338,11 +340,36 @@ impl VocabularyProcessor {
             //     self.manifest.model.base_iri,
             //     to_pascal_case(property_class)
             // );
-            let value = PropertyDatatype::URI(Some(format!(
-                "{}{}",
-                self.manifest.model.base_iri,
-                to_pascal_case(property_class)
-            )));
+            let value = match xsd_type {
+                PropertyDatatype::Picklist(_) => PropertyDatatype::Picklist(Some(format!(
+                    "{}{}",
+                    self.manifest.model.base_iri,
+                    to_pascal_case(property_class)
+                ))),
+                PropertyDatatype::URI(_) | PropertyDatatype::ID => {
+                    PropertyDatatype::URI(Some(format!(
+                        "{}{}",
+                        self.manifest.model.base_iri,
+                        to_pascal_case(property_class)
+                    )))
+                }
+                _ => {
+                    let error_string = format!(
+                        "[Property: {}] A property with type {} cannot have a target class ({})",
+                        property_name, property_type, property_class
+                    );
+                    if self.is_strict {
+                        return Err(ProcessorError::Processing(error_string));
+                    } else {
+                        tracing::warn!("{}", error_string);
+                        PropertyDatatype::URI(Some(format!(
+                            "{}{}",
+                            self.manifest.model.base_iri,
+                            to_pascal_case(property_class)
+                        )))
+                    }
+                }
+            };
             Some(vec![value])
         } else {
             Some(vec![xsd_type.clone()])
@@ -385,6 +412,7 @@ impl VocabularyProcessor {
                 .final_iri()]),
             range,
             extra_items: extra_items_result,
+            one_of: None,
         };
 
         // If it's an ID property, store it in identifiers map

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::error::ProcessorError;
-use crate::manifest::ImportStep;
+use crate::manifest::{ImportStep, InstanceStep, StepType};
 use crate::types::{Header, IdOpt, JsonLdInstance, PivotColumn, PropertyDatatype, VocabularyMap};
 use crate::utils::{to_kebab_case, to_pascal_case, DATE_FORMATS};
 use crate::Manifest;
@@ -37,7 +37,7 @@ impl InstanceProcessor {
             vocabulary: None,
             is_strict,
             ignore,
-            is_namespace_iris
+            is_namespace_iris,
         }
     }
 
@@ -73,10 +73,7 @@ impl InstanceProcessor {
         for header in headers {
             // Skip if it's an empty string, unless on strict mode
             if header.is_empty() {
-                tracing::warn!(
-                    "Empty column found in CSV for class: {}",
-                    class_type
-                );
+                tracing::warn!("Empty column found in CSV for class: {}", class_type);
                 final_headers.push(None);
                 continue;
             }
@@ -179,7 +176,8 @@ impl InstanceProcessor {
                 for prop_iri in props {
                     // Get property label from vocabulary
                     if let Some(prop) = vocab.properties.values().find(|p| match prop_iri {
-                        PropertyDatatype::URI(Some(iri)) => p.id.final_iri() == *iri,
+                        PropertyDatatype::URI(Some(iri))
+                        | PropertyDatatype::Picklist(Some(iri)) => p.id.final_iri() == *iri,
                         _ => false,
                     }) {
                         // valid_labels.insert(prop.label.clone());
@@ -199,10 +197,7 @@ impl InstanceProcessor {
         }
 
         // drain / filter any entries in valid labels that are None
-        let valid_labels: HashSet<Header> = valid_labels
-            .into_iter()
-            .flatten()
-            .collect();
+        let valid_labels: HashSet<Header> = valid_labels.into_iter().flatten().collect();
 
         valid_labels
     }
@@ -235,6 +230,11 @@ impl InstanceProcessor {
         step: &ImportStep,
         instance_path: &str,
     ) -> Result<(), ProcessorError> {
+        let is_picklist_step = step
+            .types
+            .iter()
+            .any(|t| matches!(t, StepType::InstanceStep(InstanceStep::PicklistStep)));
+
         // Get the class type from the manifest
         let mut class_type = step.instance_type.clone();
 
@@ -254,7 +254,11 @@ impl InstanceProcessor {
         tracing::debug!("Getting identifier label for class '{}'", class_type);
 
         // Check for an override column for identifier label
-        let override_label = step.overrides.iter().find(|over_ride| over_ride.map_to == "@id").map(|over_ride| &over_ride.column);
+        let override_label = step
+            .overrides
+            .iter()
+            .find(|over_ride| over_ride.map_to == "@id")
+            .map(|over_ride| &over_ride.column);
 
         // Get the identifier property for this class
         let identifier_label = vocab.get_identifier_label(&class_type).or(override_label).ok_or_else(|| {
@@ -316,7 +320,7 @@ impl InstanceProcessor {
 
         // let headers = self.drop_ignore(&mut headers, &class_type, identifier_label);
 
-        tracing::debug!("[Process_simple_instance] Headers: {:#?}", headers);
+        tracing::trace!("[Process_simple_instance] Headers: {:#?}", headers);
 
         // Process each row
         for (result_row_num, result) in rdr.records().enumerate() {
@@ -327,7 +331,8 @@ impl InstanceProcessor {
             // Get the identifier value
             let mut id = record
                 .get(id_column_index)
-                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?.to_string();
+                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?
+                .to_string();
 
             if self.is_namespace_iris {
                 id = format!("{}/{}", to_kebab_case(&class_type), &id);
@@ -372,46 +377,57 @@ impl InstanceProcessor {
                                         .iter()
                                         .find_map(|fmt| {
                                             // First try exact parsing
-                                            if let Ok(date) = chrono::NaiveDate::parse_from_str(trimmed_value, fmt) {
+                                            if let Ok(date) = chrono::NaiveDate::parse_from_str(
+                                                trimmed_value,
+                                                fmt,
+                                            ) {
                                                 return Some(date);
                                             }
-                                            
+
                                             // Handle partial dates
                                             match *fmt {
                                                 // Year only - default to Jan 1
                                                 "%Y" => {
-                                                    trimmed_value.parse::<i32>()
-                                                        .ok()
-                                                        .and_then(|year| {
+                                                    trimmed_value.parse::<i32>().ok().and_then(
+                                                        |year| {
                                                             chrono::NaiveDate::from_ymd_opt(
-                                                                year,
-                                                                1,  // January
-                                                                1   // 1st
+                                                                year, 1, // January
+                                                                1, // 1st
                                                             )
-                                                        })
-                                                },
+                                                        },
+                                                    )
+                                                }
                                                 // Year-month formats - default to 1st of month
                                                 "%Y-%m" | "%Y/%m" | "%b %Y" | "%B %Y" | "%m-%Y" => {
-                                                    if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
-                                                        &format!("{}-01", trimmed_value.replace("/", "-")),
-                                                        "%Y-%m-%d"
-                                                    ) {
+                                                    if let Ok(parsed) =
+                                                        chrono::NaiveDate::parse_from_str(
+                                                            &format!(
+                                                                "{}-01",
+                                                                trimmed_value.replace("/", "-")
+                                                            ),
+                                                            "%Y-%m-%d",
+                                                        )
+                                                    {
                                                         Some(parsed)
-                                                    } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
-                                                        &format!("01 {}", trimmed_value),
-                                                        "%d %B %Y"
-                                                    ) {
+                                                    } else if let Ok(parsed) =
+                                                        chrono::NaiveDate::parse_from_str(
+                                                            &format!("01 {}", trimmed_value),
+                                                            "%d %B %Y",
+                                                        )
+                                                    {
                                                         Some(parsed)
-                                                    } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
-                                                        &format!("01 {}", trimmed_value),
-                                                        "%d %b %Y"
-                                                    ) {
+                                                    } else if let Ok(parsed) =
+                                                        chrono::NaiveDate::parse_from_str(
+                                                            &format!("01 {}", trimmed_value),
+                                                            "%d %b %Y",
+                                                        )
+                                                    {
                                                         Some(parsed)
                                                     } else {
                                                         None
                                                     }
-                                                },
-                                                _ => None
+                                                }
+                                                _ => None,
                                             }
                                         })
                                         .ok_or_else(|| {
@@ -426,7 +442,20 @@ impl InstanceProcessor {
                                     let cleaned_value = value.replace(['$', '%', ','], "");
                                     if let Ok(num) = cleaned_value.parse::<i64>() {
                                         serde_json::Value::Number(serde_json::Number::from(num))
+                                    } else if self.is_strict {
+                                        return Err(ProcessorError::Processing(format!(
+                                            "[Column: {}, Row: {}], Invalid integer value: {}",
+                                            header.name,
+                                            result_row_num + 1,
+                                            value
+                                        )));
                                     } else {
+                                        tracing::warn!(
+                                                "[Column: {}, Row: {}], Invalid integer value: {}. Serializing as string.",
+                                                header.name,
+                                                result_row_num + 1,
+                                                value
+                                            );
                                         serde_json::Value::String(cleaned_value.to_string())
                                     }
                                 }
@@ -445,8 +474,18 @@ impl InstanceProcessor {
                                 }
                                 PropertyDatatype::Boolean => {
                                     let cleaned_value = value.to_lowercase();
-                                    if cleaned_value == "true" || cleaned_value == "false" || cleaned_value == "1" || cleaned_value == "0" || cleaned_value == "yes" || cleaned_value == "no" {
-                                        serde_json::Value::Bool(cleaned_value == "true" || cleaned_value == "1" || cleaned_value == "yes")
+                                    if cleaned_value == "true"
+                                        || cleaned_value == "false"
+                                        || cleaned_value == "1"
+                                        || cleaned_value == "0"
+                                        || cleaned_value == "yes"
+                                        || cleaned_value == "no"
+                                    {
+                                        serde_json::Value::Bool(
+                                            cleaned_value == "true"
+                                                || cleaned_value == "1"
+                                                || cleaned_value == "yes",
+                                        )
                                     } else {
                                         return Err(ProcessorError::Processing(format!(
                                             "[Column: {}, Row: {}], Invalid boolean value: {}",
@@ -456,39 +495,23 @@ impl InstanceProcessor {
                                         )));
                                     }
                                 }
-                                PropertyDatatype::URI(target_class) => {
-                                    let class_match = match target_class {
-                                        Some(target_class) => self
-                                        .vocabulary
-                                        .as_ref()
-                                        .unwrap()
-                                        .classes
-                                        .iter()
-                                        .find_map(|(id, _)| {
-                                                let final_id = id.normalize().to_pascal_case().with_base_iri(&self.manifest.model.base_iri);
-                                                match final_id {
-                                                IdOpt::String(string_id) if &string_id == target_class => Some(id.clone()),
-                                                IdOpt::ReplacementMap { original_id, .. } if &original_id == target_class => {
-                                                    Some(id.clone())
-                                                }
-                                                _ => None,
-                                            }
-                                        }),
-                                        None => None
-                                    };
-                                    
-                                    if let Some(class_id) = class_match {
-                                        // tracing::debug!("Found class match: {:#?} for value: {}", class_id, value);
-                                        // serde_json::Value::String(class_id.normalize().to_pascal_case().final_iri())
-                                        if self.is_namespace_iris {
-                                            let iri = format!("{}/{}", to_kebab_case(class_id.to_string().as_ref()), value);
-                                            serde_json::Value::String(iri)
-                                        } else {
-                                            serde_json::Value::String(value.to_string())
-                                        }
-                                    } else {
-                                            serde_json::Value::String(value.to_string())    
-                                    }
+                                PropertyDatatype::URI(target_class) => self
+                                    .process_class_restricted_value(
+                                        &class_type,
+                                        &header.name,
+                                        value,
+                                        target_class,
+                                        &header.datatype,
+                                    )?,
+                                PropertyDatatype::Picklist(target_class) => {
+                                    tracing::trace!("Processing picklist value: {}", value);
+                                    self.process_class_restricted_value(
+                                        &class_type,
+                                        &header.name,
+                                        value,
+                                        target_class,
+                                        &header.datatype,
+                                    )?
                                 }
                             };
 
@@ -498,7 +521,10 @@ impl InstanceProcessor {
                                     .or_insert_with(|| {
                                         let id = uuid::Uuid::new_v4().to_string();
                                         let mut new_map = serde_json::Map::new();
-                                        new_map.insert("@id".to_string(), serde_json::Value::String(id));
+                                        new_map.insert(
+                                            "@id".to_string(),
+                                            serde_json::Value::String(id),
+                                        );
                                         serde_json::Value::Object(new_map)
                                     });
                                 let id = pivot_property_entry.get("@id").unwrap().as_str().unwrap();
@@ -508,19 +534,20 @@ impl InstanceProcessor {
 
                                 let new_instance = JsonLdInstance {
                                     id: IdOpt::String(id.to_string()),
-                                    type_: vec![IdOpt::String(pivot_column_match.instance_type.clone())],
-                                    properties
+                                    type_: vec![IdOpt::String(
+                                        pivot_column_match.instance_type.clone(),
+                                    )],
+                                    properties,
                                 };
 
                                 match self.instances.entry(id.to_string()) {
                                     Entry::Occupied(mut entry) => {
                                         entry.get_mut().update_with(new_instance)?;
-                                    },
+                                    }
                                     Entry::Vacant(entry) => {
                                         entry.insert(new_instance);
-                                    },
+                                    }
                                 };
-
                             } else {
                                 // Handle numeric values
                                 properties.insert(header.name.clone(), final_value);
@@ -532,18 +559,132 @@ impl InstanceProcessor {
                 }
             }
 
+            let instance_id = IdOpt::String(id);
+
             let instance = JsonLdInstance {
-                id: IdOpt::String(id),
+                id: instance_id.clone(),
                 type_: vec![IdOpt::String(class_type.clone())],
                 properties,
             };
 
             tracing::trace!("Updating or inserting instance: {:#?}", instance);
 
-            self.update_or_insert_instance(instance)?;
+            self.update_or_insert_instance(instance.clone())?;
+            if is_picklist_step {
+                self.vocabulary
+                    .as_mut()
+                    .unwrap()
+                    .update_or_insert_picklist_instance(class_type.clone(), instance_id)?;
+            }
         }
 
         Ok(())
+    }
+
+    fn process_class_restricted_value(
+        &self,
+        class_type: &str,
+        header: &str,
+        value: &str,
+        target_class: &Option<String>,
+        datatype: &PropertyDatatype,
+    ) -> Result<serde_json::Value, ProcessorError> {
+        // let class_match = match target_class {
+        //     Some(target_class) => self
+        //     .vocabulary
+        //     .as_ref()
+        //     .unwrap()
+        //     .classes
+        //     .iter()
+        //     .find_map(|(id, _)| {
+        //             let final_id = id.normalize().to_pascal_case().with_base_iri(&self.manifest.model.base_iri);
+        //             match final_id {
+        //             IdOpt::String(string_id) if &string_id == target_class => Some(id.clone()),
+        //             IdOpt::ReplacementMap { original_id, .. } if &original_id == target_class => {
+        //                 Some(id.clone())
+        //             }
+        //             _ => None,
+        //         }
+        //     }),
+        //     None => None
+        // };
+
+        let class_match = match target_class {
+            Some(target_class) => {
+                self.vocabulary
+                    .as_ref()
+                    .unwrap()
+                    .classes
+                    .iter()
+                    .find(|(id, _)| {
+                        let final_id = id
+                            .normalize()
+                            .to_pascal_case()
+                            .with_base_iri(&self.manifest.model.base_iri);
+                        match final_id {
+                            IdOpt::String(string_id) => &string_id == target_class,
+                            IdOpt::ReplacementMap { original_id, .. } => {
+                                &original_id == target_class
+                            }
+                        }
+                    })
+            }
+            None => None,
+        };
+
+        if matches!(datatype, PropertyDatatype::Picklist(_)) {
+            let (class_match, class_match_class_definition) = class_match.ok_or_else(|| {
+                ProcessorError::Processing(format!(
+                    "Class match not found for picklist value: {}",
+                    value
+                ))
+            })?;
+            tracing::trace!(
+                "Found class match: {:#?} for value: {}",
+                class_match_class_definition,
+                value
+            );
+            let enum_picklist = class_match_class_definition.one_of.clone().ok_or_else(|| {
+                ProcessorError::Processing(format!(
+                    "Class match found ({}) for picklist value ({}) on header ({}), but no picklist enums defined on class. You may need to define the CSV sequence to handle {} before {}",
+                    class_match, value, header, class_match, class_type
+                ))
+            })?;
+            let iri = format!(
+                "{}/{}",
+                to_kebab_case(class_match.to_string().as_ref()),
+                value
+            );
+            let does_picklist_contain_value = enum_picklist
+                .iter()
+                .any(|picklist_value| picklist_value.to_string() == iri);
+            if !does_picklist_contain_value {
+                let error_string = format!(
+                    "Value \"{}\" for property \"{}\" not found in {} picklist: {:?}",
+                    value, header, class_match, enum_picklist
+                );
+                if self.is_strict {
+                    return Err(ProcessorError::Processing(error_string));
+                } else {
+                    tracing::warn!(error_string);
+                }
+            }
+        }
+
+        let class_match_id = class_match.map(|(id, _)| id.clone());
+
+        if let Some(class_id) = class_match_id {
+            // tracing::debug!("Found class match: {:#?} for value: {}", class_id, value);
+            // serde_json::Value::String(class_id.normalize().to_pascal_case().final_iri())
+            if self.is_namespace_iris {
+                let iri = format!("{}/{}", to_kebab_case(class_id.to_string().as_ref()), value);
+                Ok(serde_json::Value::String(iri))
+            } else {
+                Ok(serde_json::Value::String(value.to_string()))
+            }
+        } else {
+            Ok(serde_json::Value::String(value.to_string()))
+        }
     }
 
     pub fn validate_pivot_columns(
@@ -612,15 +753,12 @@ impl InstanceProcessor {
                         .values()
                         .filter_map(|prop| {
                             let final_prop_iri = prop.id.final_iri();
-                            if range_props
-                                .iter()
-                                .any(|r| 
+                            if range_props.iter().any(|r|
                                     // matches!(r, PropertyDatatype::URI(Some(final_prop_iri)))
                                     match r {
                                     PropertyDatatype::URI(Some(iri)) => final_prop_iri == *iri,
                                     _ => false,
-                                }
-                                )
+                                })
                             {
                                 prop.label.as_ref()
                             } else {
@@ -740,7 +878,8 @@ impl InstanceProcessor {
             // Get the identifier value
             let mut id = record
                 .get(id_column_index)
-                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?.to_string();
+                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?
+                .to_string();
 
             if self.is_namespace_iris {
                 id = format!("{}/{}", to_kebab_case(&parent_class_type), id);
@@ -915,7 +1054,8 @@ impl InstanceProcessor {
 
             let mut entity_id = record
                 .get(entity_id_index)
-                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?.to_string();
+                .ok_or_else(|| ProcessorError::Processing("Missing identifier value".into()))?
+                .to_string();
 
             if self.is_namespace_iris {
                 entity_id = format!("{}/{}", to_kebab_case(&class_type), entity_id);

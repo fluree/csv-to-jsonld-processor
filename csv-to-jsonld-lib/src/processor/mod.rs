@@ -68,7 +68,35 @@ impl Processor {
         self.instance_manager.set_vocabulary(vocabulary);
 
         tracing::info!("Processing instance files...");
-        let instance_sequence = self.instance_sequence();
+        let mut instance_sequence = self.instance_sequence();
+
+        // Order sequence so that any ImportStep with InstanceStep::PicklistStep is processed first
+        // and if we do reorder the instance_sequence, we should warn the user
+        let mut did_reorder_instance_sequence = false;
+        instance_sequence.sort_by(|a, b| {
+            let a_is_picklist = a
+                .types
+                .iter()
+                .any(|t| matches!(t, StepType::InstanceStep(InstanceStep::PicklistStep)));
+            let b_is_picklist = b
+                .types
+                .iter()
+                .any(|t| matches!(t, StepType::InstanceStep(InstanceStep::PicklistStep)));
+
+            if a_is_picklist && !b_is_picklist {
+                did_reorder_instance_sequence = true;
+                std::cmp::Ordering::Less
+            } else if !a_is_picklist && b_is_picklist {
+                did_reorder_instance_sequence = true;
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        });
+        if did_reorder_instance_sequence {
+            tracing::warn!("Reordered instance sequence to process PicklistStep(s) first");
+        };
+
         for step in instance_sequence {
             self.process_instance_step(&step).await?;
         }
@@ -100,10 +128,10 @@ impl Processor {
         }
 
         tracing::debug!("At end of step: {:?}", step_name);
-        tracing::debug!(
-            "Current vocabulary: {:#?}",
-            self.vocabulary_manager.processor.vocabulary
-        );
+        // tracing::debug!(
+        //     "Current vocabulary: {:#?}",
+        //     self.vocabulary_manager.processor.vocabulary
+        // );
 
         Ok(())
     }
@@ -134,7 +162,7 @@ impl Processor {
 
         // Process based on step type
         match instance_step {
-            InstanceStep::BasicInstanceStep => {
+            InstanceStep::BasicInstanceStep | InstanceStep::PicklistStep => {
                 tracing::debug!("Processing as basic instance data");
                 self.instance_manager
                     .process_simple_instance(step, instance_path.to_str().unwrap())

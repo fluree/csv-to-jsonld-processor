@@ -18,6 +18,7 @@ pub enum ModelStep {
 #[allow(clippy::enum_variant_names)]
 pub enum InstanceStep {
     BasicInstanceStep,
+    PicklistStep,
     SubClassInstanceStep,
     PropertiesInstanceStep,
 }
@@ -62,6 +63,7 @@ impl<'de> Deserialize<'de> for StepType {
                     "BasicInstanceStep" => {
                         Ok(StepType::InstanceStep(InstanceStep::BasicInstanceStep))
                     }
+                    "PicklistStep" => Ok(StepType::InstanceStep(InstanceStep::PicklistStep)),
                     "SubClassInstanceStep" => {
                         Ok(StepType::InstanceStep(InstanceStep::SubClassInstanceStep))
                     }
@@ -75,6 +77,7 @@ impl<'de> Deserialize<'de> for StepType {
                             "BasicVocabularyStep",
                             "SubClassVocabularyStep",
                             "BasicInstanceStep",
+                            "PicklistStep",
                             "SubClassInstanceStep",
                             "PropertiesInstanceStep",
                         ],

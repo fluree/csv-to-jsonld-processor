@@ -1,6 +1,8 @@
 use crate::utils::{are_conflicting, normalize_label_for_iri, to_camel_case};
 use crate::{error::ProcessorError, utils::to_pascal_case};
+use anyhow::Result;
 use serde::{Serialize, Serializer};
+use std::collections::hash_map::Entry;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, fmt::Display};
 
@@ -174,6 +176,7 @@ pub struct VocabularyTerm {
     pub domain: Option<Vec<String>>,
     pub range: Option<Vec<PropertyDatatype>>,
     pub extra_items: HashMap<String, String>,
+    pub one_of: Option<Vec<IdOpt>>,
 }
 
 impl VocabularyTerm {
@@ -329,6 +332,18 @@ impl Serialize for VocabularyTerm {
                 map.insert(key.clone(), serde_json::Value::String(value.clone()));
             }
         }
+        if let Some(one_of) = &self.one_of {
+            map.insert(
+                "f:oneOf".to_string(),
+                serde_json::Value::Array(
+                    one_of
+                        .clone()
+                        .into_iter()
+                        .map(|value| serde_json::Value::String(value.final_iri()))
+                        .collect(),
+                ),
+            );
+        }
         map.serialize(serializer)
     }
 }
@@ -378,5 +393,52 @@ impl VocabularyMap {
         self.identifiers
             .get(class_name)
             .map(|term| term.label.as_ref().unwrap())
+    }
+
+    pub fn update_or_insert_picklist_instance(
+        &mut self,
+        class_name: String,
+        instance_id: IdOpt,
+    ) -> Result<(), ProcessorError> {
+        tracing::debug!(
+            "Updating vocabulary with picklist instance: {} for class: {}",
+            instance_id,
+            class_name
+        );
+        // let vocab_entry = self.classes.entry(IdOpt::String(class_name.clone()));
+        let class_key = self
+            .classes
+            .keys()
+            .find(|id| {
+                let final_id = id.normalize().to_pascal_case();
+                match final_id {
+                    IdOpt::String(string_id) => string_id == class_name,
+                    IdOpt::ReplacementMap { original_id, .. } => original_id == class_name,
+                }
+            })
+            .ok_or_else(|| {
+                ProcessorError::Processing(format!(
+                    "Cannot process picklist entry because class name ({}) not found in vocabulary classes",
+                    class_name
+                ))
+            })?;
+        let vocab_entry = self.classes.entry(class_key.clone());
+        match vocab_entry {
+            Entry::Occupied(mut entry) => {
+                let term = entry.get_mut();
+                if let Some(one_of) = &mut term.one_of {
+                    one_of.push(instance_id);
+                } else {
+                    term.one_of = Some(vec![instance_id]);
+                };
+            }
+            _ => {
+                panic!(
+                    "Class name not found in vocabulary identifiers: {}",
+                    class_name
+                );
+            }
+        }
+        Ok(())
     }
 }

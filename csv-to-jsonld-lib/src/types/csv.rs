@@ -15,6 +15,7 @@ use super::VocabularyTerm;
 pub enum PropertyDatatype {
     ID,
     URI(Option<String>),
+    Picklist(Option<String>),
     String,
     Decimal,
     Integer,
@@ -28,8 +29,8 @@ impl FromStr for PropertyDatatype {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_lowercase().as_str() {
             "primary key identifier" | "@id" => Ok(PropertyDatatype::ID),
-            // TODO: Need to handle "picklist" separately
-            "foreign key reference" | "uri" | "picklist" => Ok(PropertyDatatype::URI(None)),
+            "foreign key reference" | "uri" => Ok(PropertyDatatype::URI(None)),
+            "picklist" => Ok(PropertyDatatype::Picklist(None)),
             "string" | "" => Ok(PropertyDatatype::String),
             "float" => Ok(PropertyDatatype::Decimal),
             "integer" => Ok(PropertyDatatype::Integer),
@@ -86,6 +87,10 @@ impl Serialize for PropertyDatatype {
         let xsd_value = match self {
             PropertyDatatype::ID => "xsd:anyURI",
             PropertyDatatype::URI(string_option) => match string_option {
+                Some(string) => string,
+                None => "xsd:anyURI",
+            },
+            PropertyDatatype::Picklist(string_option) => match string_option {
                 Some(string) => string,
                 None => "xsd:anyURI",
             },
