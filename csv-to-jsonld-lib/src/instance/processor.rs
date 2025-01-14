@@ -373,6 +373,7 @@ impl InstanceProcessor {
                             let vec_value = if let Some(delimiter) = step.delimit_values_on.as_ref()
                             {
                                 if header.datatype == PropertyDatatype::String {
+                                    // TODO: Think about this more
                                     // We won't parse strings for delimiter
                                     vec![value]
                                 } else {

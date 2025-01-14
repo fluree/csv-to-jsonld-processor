@@ -1,6 +1,9 @@
 {
   "@context": {
     "f": "https://ns.flur.ee/ledger#",
+    "f:oneOf": {
+      "@type": "@id"
+    },
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "rdfs:domain": {
@@ -24,73 +27,16 @@
     ],
     "properties": [
       {
-        "@id": "http://example.com/terms/estCompetitorCost",
+        "@id": "http://example.com/terms/maxMaterialUnitPrice",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "Estimated average Cost of Goods Sold for competitor products, based on market research performed by the Market Intelligence team.  The goal is to get an understanding of competitive market components and margins, to see if there are opportunities to optimize the Product's Bill of Materials.",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Est. Competitor Cost",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/hasManufacturer",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The identifier of the Manufacturer that produces the Material.  The authoritative source of the Manufacturer information is the Vendor Management System",
+        "http://example.com/terms/reasoningLogic": "Maximum of Material Price for all Materials within the same Material Class",
+        "rdfs:comment": "The highest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
         "rdfs:domain": [
           "http://example.com/terms/Material"
         ],
-        "rdfs:label": "has Manufacturer",
-        "rdfs:range": [
-          "http://example.com/terms/Manufacturer"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/potentialCostSavingsPerProduct",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The difference between the Product Retail Price and the Minimum Retail Price at the Optimal Gross Margin",
-        "rdfs:comment": "The theoretical price differential between the current Product Retail Price and the theoretical most efficient price if the lowest possible cost product was delivered at the highest margin that the market can afford.",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Potential Cost Savings Per Product",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/manufacturerName",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The name of the Manufacturer",
-        "rdfs:domain": [
-          "http://example.com/terms/Manufacturer"
-        ],
-        "rdfs:label": "Manufacturer Name",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/minimumRetailPriceBWCompetitorPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Minimum Retail Price at Optimal Gross Margin",
-        "rdfs:comment": "The difference between the theoretical minimum retail price compared to equivalent competitive product retail price.  The goal is for this number to be higher compared to the B/(W) Competitor Cost",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Minimum Retail Price B/(W) Competitor Price",
+        "rdfs:label": "Max Material Unit Price",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -110,261 +56,17 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/productDescription",
+        "@id": "http://example.com/terms/activeSince",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The description of the product and functionality, to be displayed in retail strorefronts and catalog.  The description is managed by the Product Management organization and recorded in the authoritative Product Lifecycle Management system",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Product Description",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/asOfDate",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The date as of when the inventory was tracked and last modified",
-        "rdfs:domain": [
-          "http://example.com/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "As of Date",
-        "rdfs:range": [
-          "xsd:date"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/minimumPotentialCost",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The sum of the Min Alternate Material Unit Price for the Materials in a Product as defined by the Bill of Materials record for that Product",
-        "rdfs:comment": "An alternative Product Cost of Goods Sold if we substituted all of the materials that make up the product assembly with the lowest possible option based on looking at parts in the inventory.  This is determined by identifying the lowest cost material option for each class of material defined for the product in the Bill of Materials",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Minimum Potential Cost",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/quantityUnitsAvailable",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The total number of units available at the Warehouse Location for that Material",
-        "rdfs:domain": [
-          "http://example.com/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Quantity Units Available",
-        "rdfs:range": [
-          "xsd:integer"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/priceRatioComparedToMax",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The difference between the Max Material Unit Price and the Material Unit Price, divided by the Material Unit Price",
-        "rdfs:comment": "The ratio of how much less expensive a Material is compared to the most expensive material of the same Material subclass.  This number is always less than or equal to zero, and the *lower* the number (the further below zero it is), the *better* as this means that the material is more affordable compared to the most expensive alternative material.",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Price Ratio Compared to Max",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/priceRatioComparedToMin",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The ratio of how much more expensive a Material is compared to the cheapest material of the same Material subclass.  This number is always greather than or equal to zero, and the *higher* the number (the further above zero it is), the *worse* as this means that the material is less affordable compared to the least expensive alternative material",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Price Ratio Compared to Min",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/materialUnitPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The unit cost of the Material.  If the Material Class is an OEM component, then this is the purchase price of the Material from the Manufacturer.  If this is a non-OEM component, then this is the internal calculated cost to internally source",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Material Unit Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/ontimeDeliveryRating",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The ontime delivery quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product ontime delivery (e.g. delays in shipment time, poor inventory management).  A score of 5 is the maximum possible high delivery rating. Scores of 4 and above indicate sufficient reason to continue to do business with that manufacturer.",
+        "rdfs:comment": "The date when the contract to begin conducting business with the Manufacturer was signed",
         "rdfs:domain": [
           "http://example.com/terms/Manufacturer"
         ],
-        "rdfs:label": "Ontime Delivery Rating",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/bWCompetitorMargins",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The difference between the Gross Margin and the Est Competitor Margins",
-        "rdfs:comment": "The difference between the product Gross Margin and the estimated equivalent competitive product margin.  The higher the number, the lower our cost to deliver the product compared to the competitors in the marketplace.  The lower the number, the more expensive it is to produce the product compared to the competition.  Typically, the lowest performing products that need to be optimized are the ones with a high negative competitive ratio and a negative better than (b) / worse than (w) competitor margin",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "B/(W) Competitor Margins",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/hasMaterial",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The identifier of the individual material selected from the vendor inventory to assemble the product. When used on a Bill of Materials Item, it represents the current material used to satisfy a product's assembly conditions, however any material of the specific Material type defined for that Bill of Materials Item could also be used.",
-        "rdfs:domain": [
-          "http://example.com/terms/BillOfMaterialsItem",
-          "http://example.com/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "has Material",
-        "rdfs:range": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/inventoryStatus",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "Expected values on this property are \"At Risk\", \"Approaching Risk\", \"In Stock\", or \"Overstock\". The values indicate whether the inventory supply for the Material within the Warehouse location is adequate given required batch manufacturing processes. \"At Risk\" means that there is not sufficient inventory to assemble the product and the current batch and subsequent batches may be at risk of being assembled and shipped on time.  \"Approaching Risk\" means that inventory supply is reaching the risk threshold, but there is adequate time to manage the procurement process to replenish stock before there are impacts to production assembly lines.  \"In Stock\" means that there is adequate supply of inventory within the Warehouse location.  \"Overstock\" means that there is too much capacity for that material in inventory and speaks to either poor demand management processes, assembly line operational issues where batches are not being produced at the expected efficiency rate, or delays in entire assembly lines due to other potential materials being out of supply.",
-        "rdfs:domain": [
-          "http://example.com/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Inventory Status",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/estCompetitorMargin",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Est. Competitor Cost, divided by the Competitor Retail Price",
-        "rdfs:comment": "The percentage profit income for the equivalent competitve product sold.  The idea is to be able to compare the equivalent competitive product's margins to our company.  If a competitive product has a lower retail price, but a higher comparable Gross Margin, then there are significant opportunities to improve the Product's Bill of Materials",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Est. Competitor Margin",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/productRetailPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The suggested manufacturer's retail price for the the product.  This is the price at which the product is to be sold across retail and distribution channels to end customers.",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Product Retail Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/productQualityRating",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The product quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product quality.  A score of 5 is the maximum possible high quality score. Scores of 4 and above indicate sufficient reason to continue to do business with that manufacturer.",
-        "rdfs:domain": [
-          "http://example.com/terms/Manufacturer"
-        ],
-        "rdfs:label": "Product Quality Rating",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/nextShipmentReceiptDate",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The date when the next shipment of inventory is due from the Manufacturer",
-        "rdfs:domain": [
-          "http://example.com/terms/WarehouseInventory"
-        ],
-        "rdfs:label": "Next Shipment Receipt Date",
+        "rdfs:label": "Active Since",
         "rdfs:range": [
           "xsd:date"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/materialDescription",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The description of the Material, as saved in the ERP and Vendor Management system",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Material Description",
-        "rdfs:range": [
-          "xsd:string"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/marginImprovement",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The Potential Cost Savings Per Product divided by the Product Cost of Goods Sold",
-        "rdfs:comment": "The percentage margin improvement based on comparing the potential cost save versus the current product cost.  This describes the opportunity if the lowest cost materials based on stock availability were included in the assembly.",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "Margin Improvement",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/hasItems",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The identifier of the material items (material identifier, required material classm, & quantity of materials) selected from the vendor inventory to assemble the product.",
-        "rdfs:domain": [
-          "http://example.com/terms/BillOfMaterials"
-        ],
-        "rdfs:label": "has Items",
-        "rdfs:range": [
-          "http://example.com/terms/BillOfMaterialsItem"
         ]
       },
       {
@@ -383,80 +85,6 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/maxMaterialUnitPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "Maximum of Material Price for all Materials within the same Material Class",
-        "rdfs:comment": "The highest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Max Material Unit Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/minMaterialUnitPrice",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "Minimum of Material Price for all Materials within the same Material Class",
-        "rdfs:comment": "The lowest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Min Material Unit Price",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/bWCompetitiveRatio",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The B/(W) Competitor Cost divided by the Competitor Retail Price",
-        "rdfs:comment": "The percentage difference between the Competitor Retail Price and the Product Retail Price, relative to the competitor retail price. If this number is positive, this is good, and the higher the number, the better (the \"B\" in \"B/W\") or more competitively priced our product is compared to the competition.  A positive number means we could potentially increase retail price and improve profit margins for this product. If this number is negative, this is bad, and the lower the number, the worse (the \"W\" in \"B/W\") or more expensive our product is compared to the competition and the worse it will likely perform in the marketplace.  If this number is very low, then this product could be significantly overpriced compared to the competition which could impact sales.  We want to target this number and make it as positive as possible.",
-        "rdfs:domain": [
-          "http://example.com/terms/Product"
-        ],
-        "rdfs:label": "B/(W) Competitive Ratio",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/totalAvailableInventory",
-        "@type": [
-          "rdf:Property"
-        ],
-        "http://example.com/terms/reasoningLogic": "The sum of the Quantity Units Available for the Material across all Warehouse Locations",
-        "rdfs:comment": "The sum of all current in-stock units of the Material across all current Warehouse locations, stoage facilities and assembly plants.  This number is important, as not having enough materials available for assembly could lead to lengthy product delays",
-        "rdfs:domain": [
-          "http://example.com/terms/Material"
-        ],
-        "rdfs:label": "Total Available Inventory",
-        "rdfs:range": [
-          "xsd:decimal"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/activeSince",
-        "@type": [
-          "rdf:Property"
-        ],
-        "rdfs:comment": "The date when the contract to begin conducting business with the Manufacturer was signed",
-        "rdfs:domain": [
-          "http://example.com/terms/Manufacturer"
-        ],
-        "rdfs:label": "Active Since",
-        "rdfs:range": [
-          "xsd:date"
-        ]
-      },
-      {
         "@id": "http://example.com/terms/productName",
         "@type": [
           "rdf:Property"
@@ -471,16 +99,44 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/grossMargin",
+        "@id": "http://example.com/terms/productQualityRating",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/terms/reasoningLogic": "The difference between the Product Retail Price and the Product Cost of Goods Sold, divided by the Product Retail Price",
-        "rdfs:comment": "The percentage profit income for the product sold, based on the difference between the manufacturer's suggested retail price and its cost of goods sold.  This represents the markup percentage between the Retail Price and the Cost of Goods sold.  The higher the number, the more net income can be generated and the higher the company's financial performance",
+        "rdfs:comment": "The product quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product quality.  A score of 5 is the maximum possible high quality score. Scores of 4 and above indicate sufficient reason to continue to do business with that manufacturer.",
+        "rdfs:domain": [
+          "http://example.com/terms/Manufacturer"
+        ],
+        "rdfs:label": "Product Quality Rating",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/minimumRetailPriceAtOptimalGrossMargin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The Minimum Potential Cost divided by one minus the higher number between the Gross Margin and the Est. Competitor Margin",
+        "rdfs:comment": "The theoretical most optimal retail price if we modified the Bill of Materials to only select the lowest cost materials and set the retail price at the highest gross margin (based on comparing current versus competitos gross margin).  The retail price could be lower than the current retail price, and can be used to compare to competitor price.  This is especially valuable if the competitor's price is lower and they have a higher operating margin.",
         "rdfs:domain": [
           "http://example.com/terms/Product"
         ],
-        "rdfs:label": "Gross Margin",
+        "rdfs:label": "Minimum Retail Price at Optimal Gross Margin",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/ontimeDeliveryRating",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The ontime delivery quality rating from 1 to 5 as managed by the Procurement Quality Control Team.  A score of 1 means poor product ontime delivery (e.g. delays in shipment time, poor inventory management).  A score of 5 is the maximum possible high delivery rating. Scores of 4 and above indicate sufficient reason to continue to do business with that manufacturer.",
+        "rdfs:domain": [
+          "http://example.com/terms/Manufacturer"
+        ],
+        "rdfs:label": "Ontime Delivery Rating",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -501,30 +157,72 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/hasMaterialClass",
+        "@id": "http://example.com/terms/asOfDate",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The identifier for the particular Material Class (which will be a sub class of Material). This may exist on Material, or if it appears on Bill of Materials, it indicates the constraint for materials which must be satisfied for this particular Bill of Materials Item. If replacing the material reference for a Bill of Materials Item, it must always be an instance of the class referenced by this property.",
+        "rdfs:comment": "The date as of when the inventory was tracked and last modified",
         "rdfs:domain": [
-          "http://example.com/terms/BillOfMaterialsItem",
-          "http://example.com/terms/Material"
+          "http://example.com/terms/WarehouseInventory"
         ],
-        "rdfs:label": "has Material Class",
+        "rdfs:label": "As of Date",
         "rdfs:range": [
-          "http://example.com/terms/Class"
+          "xsd:date"
         ]
       },
       {
-        "@id": "http://example.com/terms/competitorRetailPrice",
+        "@id": "http://example.com/terms/nextShipmentReceiptDate",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "Estimated average retail price for competitor products, based on industry market scan performed by the Market Intelligence team.  The idea is to be able to compare the current Product Retail Price with competitors in order to identify opportunities for price optimization",
+        "rdfs:comment": "The date when the next shipment of inventory is due from the Manufacturer",
+        "rdfs:domain": [
+          "http://example.com/terms/WarehouseInventory"
+        ],
+        "rdfs:label": "Next Shipment Receipt Date",
+        "rdfs:range": [
+          "xsd:date"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/priceRatioComparedToMin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The ratio of how much more expensive a Material is compared to the cheapest material of the same Material subclass.  This number is always greather than or equal to zero, and the *higher* the number (the further above zero it is), the *worse* as this means that the material is less affordable compared to the least expensive alternative material",
+        "rdfs:domain": [
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "Price Ratio Compared to Min",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/materialDescription",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The description of the Material, as saved in the ERP and Vendor Management system",
+        "rdfs:domain": [
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "Material Description",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/bWCompetitorMargins",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The difference between the Gross Margin and the Est Competitor Margins",
+        "rdfs:comment": "The difference between the product Gross Margin and the estimated equivalent competitive product margin.  The higher the number, the lower our cost to deliver the product compared to the competitors in the marketplace.  The lower the number, the more expensive it is to produce the product compared to the competition.  Typically, the lowest performing products that need to be optimized are the ones with a high negative competitive ratio and a negative better than (b) / worse than (w) competitor margin",
         "rdfs:domain": [
           "http://example.com/terms/Product"
         ],
-        "rdfs:label": "Competitor Retail Price",
+        "rdfs:label": "B/(W) Competitor Margins",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -544,30 +242,147 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/hasProduct",
+        "@id": "http://example.com/terms/hasManufacturer",
         "@type": [
           "rdf:Property"
         ],
-        "rdfs:comment": "The specific product being described by the individual Bill of Materials record. The point of the Bill of Materials record is to qualify the exact requirements that must be met by the materials used to assemble the product.",
+        "rdfs:comment": "The identifier of the Manufacturer that produces the Material.  The authoritative source of the Manufacturer information is the Vendor Management System",
         "rdfs:domain": [
-          "http://example.com/terms/BillOfMaterials"
+          "http://example.com/terms/Material"
         ],
-        "rdfs:label": "has Product",
+        "rdfs:label": "has Manufacturer",
         "rdfs:range": [
-          "http://example.com/terms/Product"
+          "http://example.com/terms/Manufacturer"
         ]
       },
       {
-        "@id": "http://example.com/terms/minimumRetailPriceAtOptimalGrossMargin",
+        "@id": "http://example.com/terms/priceRatioComparedToMax",
         "@type": [
           "rdf:Property"
         ],
-        "http://example.com/terms/reasoningLogic": "The Minimum Potential Cost divided by one minus the higher number between the Gross Margin and the Est. Competitor Margin",
-        "rdfs:comment": "The theoretical most optimal retail price if we modified the Bill of Materials to only select the lowest cost materials and set the retail price at the highest gross margin (based on comparing current versus competitos gross margin).  The retail price could be lower than the current retail price, and can be used to compare to competitor price.  This is especially valuable if the competitor's price is lower and they have a higher operating margin.",
+        "http://example.com/terms/reasoningLogic": "The difference between the Max Material Unit Price and the Material Unit Price, divided by the Material Unit Price",
+        "rdfs:comment": "The ratio of how much less expensive a Material is compared to the most expensive material of the same Material subclass.  This number is always less than or equal to zero, and the *lower* the number (the further below zero it is), the *better* as this means that the material is more affordable compared to the most expensive alternative material.",
+        "rdfs:domain": [
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "Price Ratio Compared to Max",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/hasItems",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The identifier of the material items (material identifier, required material classm, & quantity of materials) selected from the vendor inventory to assemble the product.",
+        "rdfs:domain": [
+          "http://example.com/terms/BillOfMaterials"
+        ],
+        "rdfs:label": "has Items",
+        "rdfs:range": [
+          "http://example.com/terms/BillOfMaterialsItem"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/bWCompetitiveRatio",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The B/(W) Competitor Cost divided by the Competitor Retail Price",
+        "rdfs:comment": "The percentage difference between the Competitor Retail Price and the Product Retail Price, relative to the competitor retail price. If this number is positive, this is good, and the higher the number, the better (the \"B\" in \"B/W\") or more competitively priced our product is compared to the competition.  A positive number means we could potentially increase retail price and improve profit margins for this product. If this number is negative, this is bad, and the lower the number, the worse (the \"W\" in \"B/W\") or more expensive our product is compared to the competition and the worse it will likely perform in the marketplace.  If this number is very low, then this product could be significantly overpriced compared to the competition which could impact sales.  We want to target this number and make it as positive as possible.",
         "rdfs:domain": [
           "http://example.com/terms/Product"
         ],
-        "rdfs:label": "Minimum Retail Price at Optimal Gross Margin",
+        "rdfs:label": "B/(W) Competitive Ratio",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/competitorRetailPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "Estimated average retail price for competitor products, based on industry market scan performed by the Market Intelligence team.  The idea is to be able to compare the current Product Retail Price with competitors in order to identify opportunities for price optimization",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Competitor Retail Price",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/totalAvailableInventory",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The sum of the Quantity Units Available for the Material across all Warehouse Locations",
+        "rdfs:comment": "The sum of all current in-stock units of the Material across all current Warehouse locations, stoage facilities and assembly plants.  This number is important, as not having enough materials available for assembly could lead to lengthy product delays",
+        "rdfs:domain": [
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "Total Available Inventory",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/grossMargin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The difference between the Product Retail Price and the Product Cost of Goods Sold, divided by the Product Retail Price",
+        "rdfs:comment": "The percentage profit income for the product sold, based on the difference between the manufacturer's suggested retail price and its cost of goods sold.  This represents the markup percentage between the Retail Price and the Cost of Goods sold.  The higher the number, the more net income can be generated and the higher the company's financial performance",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Gross Margin",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/hasMaterialClass",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The identifier for the particular Material Class (which will be a sub class of Material). This may exist on Material, or if it appears on Bill of Materials, it indicates the constraint for materials which must be satisfied for this particular Bill of Materials Item. If replacing the material reference for a Bill of Materials Item, it must always be an instance of the class referenced by this property.",
+        "rdfs:domain": [
+          "http://example.com/terms/BillOfMaterialsItem",
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "has Material Class",
+        "rdfs:range": [
+          "http://example.com/terms/Class"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/materialUnitPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The unit cost of the Material.  If the Material Class is an OEM component, then this is the purchase price of the Material from the Manufacturer.  If this is a non-OEM component, then this is the internal calculated cost to internally source",
+        "rdfs:domain": [
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "Material Unit Price",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/marginImprovement",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The Potential Cost Savings Per Product divided by the Product Cost of Goods Sold",
+        "rdfs:comment": "The percentage margin improvement based on comparing the potential cost save versus the current product cost.  This describes the opportunity if the lowest cost materials based on stock availability were included in the assembly.",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Margin Improvement",
         "rdfs:range": [
           "xsd:decimal"
         ]
@@ -585,127 +400,312 @@
         "rdfs:range": [
           "xsd:integer"
         ]
+      },
+      {
+        "@id": "http://example.com/terms/minimumRetailPriceBWCompetitorPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Minimum Retail Price at Optimal Gross Margin",
+        "rdfs:comment": "The difference between the theoretical minimum retail price compared to equivalent competitive product retail price.  The goal is for this number to be higher compared to the B/(W) Competitor Cost",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Minimum Retail Price B/(W) Competitor Price",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/manufacturerName",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The name of the Manufacturer",
+        "rdfs:domain": [
+          "http://example.com/terms/Manufacturer"
+        ],
+        "rdfs:label": "Manufacturer Name",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/productRetailPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The suggested manufacturer's retail price for the the product.  This is the price at which the product is to be sold across retail and distribution channels to end customers.",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Product Retail Price",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/quantityUnitsAvailable",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The total number of units available at the Warehouse Location for that Material",
+        "rdfs:domain": [
+          "http://example.com/terms/WarehouseInventory"
+        ],
+        "rdfs:label": "Quantity Units Available",
+        "rdfs:range": [
+          "xsd:integer"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/hasProduct",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The specific product being described by the individual Bill of Materials record. The point of the Bill of Materials record is to qualify the exact requirements that must be met by the materials used to assemble the product.",
+        "rdfs:domain": [
+          "http://example.com/terms/BillOfMaterials"
+        ],
+        "rdfs:label": "has Product",
+        "rdfs:range": [
+          "http://example.com/terms/Product"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/estCompetitorCost",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "Estimated average Cost of Goods Sold for competitor products, based on market research performed by the Market Intelligence team.  The goal is to get an understanding of competitive market components and margins, to see if there are opportunities to optimize the Product's Bill of Materials.",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Est. Competitor Cost",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/minMaterialUnitPrice",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "Minimum of Material Price for all Materials within the same Material Class",
+        "rdfs:comment": "The lowest comparable Material Price for all Materials within the same Material Class where there is some available inventory",
+        "rdfs:domain": [
+          "http://example.com/terms/Material"
+        ],
+        "rdfs:label": "Min Material Unit Price",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/minimumPotentialCost",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The sum of the Min Alternate Material Unit Price for the Materials in a Product as defined by the Bill of Materials record for that Product",
+        "rdfs:comment": "An alternative Product Cost of Goods Sold if we substituted all of the materials that make up the product assembly with the lowest possible option based on looking at parts in the inventory.  This is determined by identifying the lowest cost material option for each class of material defined for the product in the Bill of Materials",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Minimum Potential Cost",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/estCompetitorMargin",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The difference between the Competitor Retail Price and the Est. Competitor Cost, divided by the Competitor Retail Price",
+        "rdfs:comment": "The percentage profit income for the equivalent competitve product sold.  The idea is to be able to compare the equivalent competitive product's margins to our company.  If a competitive product has a lower retail price, but a higher comparable Gross Margin, then there are significant opportunities to improve the Product's Bill of Materials",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Est. Competitor Margin",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/hasMaterial",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The identifier of the individual material selected from the vendor inventory to assemble the product. When used on a Bill of Materials Item, it represents the current material used to satisfy a product's assembly conditions, however any material of the specific Material type defined for that Bill of Materials Item could also be used.",
+        "rdfs:domain": [
+          "http://example.com/terms/BillOfMaterialsItem",
+          "http://example.com/terms/WarehouseInventory"
+        ],
+        "rdfs:label": "has Material",
+        "rdfs:range": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/potentialCostSavingsPerProduct",
+        "@type": [
+          "rdf:Property"
+        ],
+        "http://example.com/terms/reasoningLogic": "The difference between the Product Retail Price and the Minimum Retail Price at the Optimal Gross Margin",
+        "rdfs:comment": "The theoretical price differential between the current Product Retail Price and the theoretical most efficient price if the lowest possible cost product was delivered at the highest margin that the market can afford.",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Potential Cost Savings Per Product",
+        "rdfs:range": [
+          "xsd:decimal"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/inventoryStatus",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "Expected values on this property are \"At Risk\", \"Approaching Risk\", \"In Stock\", or \"Overstock\". The values indicate whether the inventory supply for the Material within the Warehouse location is adequate given required batch manufacturing processes. \"At Risk\" means that there is not sufficient inventory to assemble the product and the current batch and subsequent batches may be at risk of being assembled and shipped on time.  \"Approaching Risk\" means that inventory supply is reaching the risk threshold, but there is adequate time to manage the procurement process to replenish stock before there are impacts to production assembly lines.  \"In Stock\" means that there is adequate supply of inventory within the Warehouse location.  \"Overstock\" means that there is too much capacity for that material in inventory and speaks to either poor demand management processes, assembly line operational issues where batches are not being produced at the expected efficiency rate, or delays in entire assembly lines due to other potential materials being out of supply.",
+        "rdfs:domain": [
+          "http://example.com/terms/WarehouseInventory"
+        ],
+        "rdfs:label": "Inventory Status",
+        "rdfs:range": [
+          "xsd:string"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/productDescription",
+        "@type": [
+          "rdf:Property"
+        ],
+        "rdfs:comment": "The description of the product and functionality, to be displayed in retail strorefronts and catalog.  The description is managed by the Product Management organization and recorded in the authoritative Product Lifecycle Management system",
+        "rdfs:domain": [
+          "http://example.com/terms/Product"
+        ],
+        "rdfs:label": "Product Description",
+        "rdfs:range": [
+          "xsd:string"
+        ]
       }
     ],
     "classes": [
       {
-        "@id": "http://example.com/terms/WarehouseInventory",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "rdfs:comment": "The availability of product materials within either the storage warehouse location, or the assembly plant.  The material availability and its distance to the assembly plant can help determine how quickly more product can be made available to the marketplace.",
-        "rdfs:label": "Warehouse Inventory",
-        "rdfs:range": [
-          "http://example.com/terms/asOfDate",
-          "http://example.com/terms/hasMaterial",
-          "http://example.com/terms/inventoryStatus",
-          "http://example.com/terms/nextShipmentReceiptDate",
-          "http://example.com/terms/quantityUnitsAvailable",
-          "http://example.com/terms/warehouseLocation"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/LCDMonitor24Inch",
+        "@id": "http://example.com/terms/CableManagementSystem",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For visualizing server management information",
-        "rdfs:label": "LCD Monitor (24-inch)",
+        "rdfs:comment": "For organizing and routing cables",
+        "rdfs:label": "Cable Management System",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/Controller",
+        "@id": "http://example.com/terms/SATACables",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Manages data read/write operations and the communication between the NAND flash memory and host computer",
-        "rdfs:label": "Controller",
+        "rdfs:comment": "Used for connecting the hard drives to the motherboard or RAID controller",
+        "rdfs:label": "SATA Cables",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/DRAMCache",
+        "@id": "http://example.com/terms/CoolingFan",
         "@type": [
           "rdfs:Class"
         ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Temporary storage used to increase the speed of data access and improve SSD performance",
-        "rdfs:label": "DRAM Cache",
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Necessary for maintaining optimal operating temperature and preventing overheating.",
+        "rdfs:label": "Cooling Fan",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/CableManagementKit",
+        "@id": "http://example.com/terms/StorageDrives500GBSSD",
         "@type": [
           "rdfs:Class"
         ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Keeps cables organized and allows for better airflow.",
-        "rdfs:label": "Cable Management Kit",
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Used for fast storage in the compute node",
+        "rdfs:label": "Storage Drives (500GB SSD)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/Rails",
+        "@id": "http://example.com/terms/RAIDController",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For installing servers in the rack",
-        "rdfs:label": "Rails",
+        "rdfs:comment": "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
+        "rdfs:label": "RAID Controller",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/USBPortsConnectors",
+        "@id": "http://example.com/terms/AccessManagementSystem",
         "@type": [
           "rdfs:Class"
         ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For connecting external drives or devices for additional storage or backups",
-        "rdfs:label": "USB Ports/Connectors",
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Software for controlling access to cloud storage",
+        "rdfs:label": "Access Management System",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/Product",
+        "@id": "http://example.com/terms/MagneticTapeCartridges",
         "@type": [
           "rdfs:Class"
         ],
-        "rdfs:comment": "The object, or system, or service made available for consumer use as of the consumer demand; products are bought as raw materials and then sold as finished goods.",
-        "rdfs:label": "Product",
-        "rdfs:range": [
-          "http://example.com/terms/bWCompetitiveRatio",
-          "http://example.com/terms/bWCompetitorCost",
-          "http://example.com/terms/bWCompetitorMargins",
-          "http://example.com/terms/competitorRetailPrice",
-          "http://example.com/terms/estCompetitorCost",
-          "http://example.com/terms/estCompetitorMargin",
-          "http://example.com/terms/grossMargin",
-          "http://example.com/terms/marginImprovement",
-          "http://example.com/terms/minimumPotentialCost",
-          "http://example.com/terms/minimumRetailPriceAtOptimalGrossMargin",
-          "http://example.com/terms/minimumRetailPriceBWCompetitorPrice",
-          "http://example.com/terms/potentialCostSavingsPerProduct",
-          "http://example.com/terms/productCostOfGoodsSold",
-          "http://example.com/terms/productDescription",
-          "http://example.com/terms/productName",
-          "http://example.com/terms/productRetailPrice"
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For storing archived data",
+        "rdfs:label": "Magnetic Tape Cartridges",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/NetworkInterfaceCardGigabitEthernet",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Interface card for network connectivity",
+        "rdfs:label": "Network Interface Card (Gigabit Ethernet)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/SATASASCables",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For connecting the HBA to the drives",
+        "rdfs:label": "SATA/SAS Cables",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
         ]
       },
       {
@@ -729,221 +729,65 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/FrontPanelControlButtons",
+        "@id": "http://example.com/terms/DualProcessorXeonOrAMD",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Used for system management, status indicators, and user interaction",
-        "rdfs:label": "Front Panel Control Buttons",
+        "rdfs:comment": "High-performance processor for data center applications",
+        "rdfs:label": "Dual Processor (Xeon or AMD)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/Motherboard",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "The main circuit board that connects all the internal components of the server.",
-        "rdfs:label": "Motherboard",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/NANDFlashMemory",
+        "@id": "http://example.com/terms/StorageDrives",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Non-volatile memory used to store data in SSDs",
-        "rdfs:label": "NAND Flash Memory",
+        "rdfs:comment": "For use in the RAID array",
+        "rdfs:label": "Storage Drives",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/SecurityLockOptional",
+        "@id": "http://example.com/terms/Controller",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Physical lock mechanism to secure the NAS system in a rack or on-site",
-        "rdfs:label": "Security Lock (optional)",
+        "rdfs:comment": "Manages data read/write operations and the communication between the NAND flash memory and host computer",
+        "rdfs:label": "Controller",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/SSDStorageDrive512GB",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Fast storage options like SSDs are included for the operating system and critical applications.",
-        "rdfs:label": "SSD Storage Drive (512GB)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/Inverter",
+        "@id": "http://example.com/terms/ChassisNASEnclosure",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Converts DC to AC when utility power fails",
-        "rdfs:label": "Inverter",
+        "rdfs:comment": "The protective casing that houses all the NAS components, designed for rack mounting or desktop use",
+        "rdfs:label": "Chassis (NAS Enclosure)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/VirtualizationSoftware",
+        "@id": "http://example.com/terms/ExternalPowerAdapter",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Virtualization platform for running multiple virtual machines",
-        "rdfs:label": "Virtualization Software",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/LEDIndicators",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "LED lights on the front panel indicating system status, disk activity and network connection",
-        "rdfs:label": "LED Indicators",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/SATACables",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Used for connecting the hard drives to the motherboard or RAID controller",
-        "rdfs:label": "SATA Cables",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/CableSleeves",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For protecting the fiber cables",
-        "rdfs:label": "Cable Sleeves",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/SATASASCables",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For connecting the HBA to the drives",
-        "rdfs:label": "SATA/SAS Cables",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/CloudStorageInfrastructure",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Remote data storage servers",
-        "rdfs:label": "Cloud Storage Infrastructure",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/CoolingFan",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Necessary for maintaining optimal operating temperature and preventing overheating.",
-        "rdfs:label": "Cooling Fan",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/ChassisSmallComponentEnclosure",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Enclosure housing for micro components",
-        "rdfs:label": "Chassis (Small Component Enclosure)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/CPUDualCore",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Processor that handles the computation and data management tasks for the NAS",
-        "rdfs:label": "CPU (Dual-core)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/CableManagementSystem",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For organizing and routing cables",
-        "rdfs:label": "Cable Management System",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/AccessManagementSystem",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Software for controlling access to cloud storage",
-        "rdfs:label": "Access Management System",
+        "rdfs:comment": "For models that require external power for backup or remote access functionality",
+        "rdfs:label": "External Power Adapter",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
@@ -963,117 +807,55 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/FiberCableOM4",
+        "@id": "http://example.com/terms/WarehouseInventory",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The availability of product materials within either the storage warehouse location, or the assembly plant.  The material availability and its distance to the assembly plant can help determine how quickly more product can be made available to the marketplace.",
+        "rdfs:label": "Warehouse Inventory",
+        "rdfs:range": [
+          "http://example.com/terms/asOfDate",
+          "http://example.com/terms/hasMaterial",
+          "http://example.com/terms/inventoryStatus",
+          "http://example.com/terms/nextShipmentReceiptDate",
+          "http://example.com/terms/quantityUnitsAvailable",
+          "http://example.com/terms/warehouseLocation"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/BillOfMaterialsItem",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "A Bill of Materials Item specifies an individual material condition that must be met for a Bill of Materials Entry. While the specific Material referenced by \"has Material\" could change, the quantity and the material class of the Bill of Materials Item cannot be changed, as they indicate the requirements for assembly of the Product represented by the Bill of Materials",
+        "rdfs:label": "Bill of Materials Item",
+        "rdfs:range": [
+          "http://example.com/terms/hasMaterialClass",
+          "http://example.com/terms/quantity",
+          "http://example.com/terms/hasMaterial"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/DisplayPanel",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "High-speed data transmission cable for long-distance",
-        "rdfs:label": "Fiber Cable (OM4)",
+        "rdfs:comment": "For monitoring UPS status",
+        "rdfs:label": "Display Panel",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/OperatingSystemEGWindowsServer",
+        "@id": "http://example.com/terms/ManagementInterface",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "The software that the server runs, enabling it to perform its functions.",
-        "rdfs:label": "Operating System (e.g., Windows Server)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/SwitchingFabric",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Manages data traffic between devices",
-        "rdfs:label": "Switching Fabric",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/RAM64GBDDR4",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Memory for data processing and management",
-        "rdfs:label": "RAM (64GB DDR4)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/MagneticTapeCartridges",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For storing archived data",
-        "rdfs:label": "Magnetic Tape Cartridges",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/ConnectorSATAOrNVMe",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Interface connector that allows the SSD to connect to the computer or server",
-        "rdfs:label": "Connector (SATA or NVMe)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/Enclosure",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Protective housing for the internal components",
-        "rdfs:label": "Enclosure",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/GraphicsProcessingUnitGPU",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "For accelerating machine learning and AI tasks",
-        "rdfs:label": "Graphics Processing Unit (GPU)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/NetworkPorts",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "48 ports for LAN connectivity",
-        "rdfs:label": "Network Ports",
+        "rdfs:comment": "For configuring and monitoring the switch",
+        "rdfs:label": "Management Interface",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
@@ -1106,64 +888,26 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/BillOfMaterials",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "rdfs:comment": "The list of the raw materials, sub-assemblies, intermediate assemblies, sub-components, parts, and the quantities of each needed to manufacture an end product. A Bill of Materials record can be used to evaluate the current materials satisfying a product's assembly conditions, as well as to evaluate the alternative materials that would meet the Bill of Materials requirements but with possibly different price requirements for assembly & delivery.",
-        "rdfs:label": "Bill of Materials",
-        "rdfs:range": [
-          "http://example.com/terms/hasItems",
-          "http://example.com/terms/hasProduct"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/InternalWiring",
+        "@id": "http://example.com/terms/Chassis42URackmountEnclosure",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
-        "rdfs:label": "Internal Wiring",
+        "rdfs:comment": "The physical case that houses all the server’s internal components. The 42U size is standard for rackmount servers.",
+        "rdfs:label": "Chassis (42U Rackmount Enclosure)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/BackupAndRecoverySystem",
+        "@id": "http://example.com/terms/SwitchingFabric",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Ensures data recovery and redundancy",
-        "rdfs:label": "Backup and Recovery System",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/RAIDController",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Manages the RAID configurations to provide redundancy, data protection,  and performance optimization",
-        "rdfs:label": "RAID Controller",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/SecuritySoftware",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "For threat detection and prevention",
-        "rdfs:label": "Security Software",
+        "rdfs:comment": "Manages data traffic between devices",
+        "rdfs:label": "Switching Fabric",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
@@ -1183,105 +927,143 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/BatteryBackupUnitBBU",
+        "@id": "http://example.com/terms/VirtualizationSoftware",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Provides power to the server in case of power failure, ensuring no data loss.",
-        "rdfs:label": "Battery Backup Unit (BBU)",
+        "rdfs:comment": "Virtualization platform for running multiple virtual machines",
+        "rdfs:label": "Virtualization Software",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/DualProcessorXeonOrAMD",
+        "@id": "http://example.com/terms/Enclosure",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "High-performance processor for data center applications",
-        "rdfs:label": "Dual Processor (Xeon or AMD)",
+        "rdfs:comment": "Protective housing for the internal components",
+        "rdfs:label": "Enclosure",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/ChassisNASEnclosure",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "The protective casing that houses all the NAS components, designed for rack mounting or desktop use",
-        "rdfs:label": "Chassis (NAS Enclosure)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/NetworkInterfaceCardGigabitEthernet",
+        "@id": "http://example.com/terms/RAM4GBDDR4",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Interface card for network connectivity",
-        "rdfs:label": "Network Interface Card (Gigabit Ethernet)",
+        "rdfs:comment": "Memory module used to temporarily store data and improve performance",
+        "rdfs:label": "RAM (4GB DDR4)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/PCBPrintedCircuitBoard",
+        "@id": "http://example.com/terms/LCDMonitor24Inch",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "The board that connects and supports all the internal components of the SSD",
-        "rdfs:label": "PCB (Printed Circuit Board)",
+        "rdfs:comment": "For visualizing server management information",
+        "rdfs:label": "LCD Monitor (24-inch)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/Manufacturer",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "rdfs:comment": "The company or entity that produces a specific component listed in the BOM, essentially identifying the source of that part within the product assembly; it provides information about who made the part, allowing for sourcing and potential supplier management.",
-        "rdfs:label": "Manufacturer",
-        "rdfs:range": [
-          "http://example.com/terms/activeSince",
-          "http://example.com/terms/manufacturerName",
-          "http://example.com/terms/ontimeDeliveryRating",
-          "http://example.com/terms/productQualityRating"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/DisplayPanel",
+        "@id": "http://example.com/terms/ConnectorSATAOrNVMe",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For monitoring UPS status",
-        "rdfs:label": "Display Panel",
+        "rdfs:comment": "Interface connector that allows the SSD to connect to the computer or server",
+        "rdfs:label": "Connector (SATA or NVMe)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
         ]
       },
       {
-        "@id": "http://example.com/terms/HeatSink",
+        "@id": "http://example.com/terms/RouterHardware",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For routing data between networks",
+        "rdfs:label": "Router Hardware",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/DriveMechanism",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Handles the operation of the tape drive",
+        "rdfs:label": "Drive Mechanism",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/HardDiskDriveHDD2TB",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "High-capacity storage drive for data centers",
+        "rdfs:label": "Hard Disk Drive (HDD 2TB)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/DRAMCache",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Temporary storage used to increase the speed of data access and improve SSD performance",
+        "rdfs:label": "DRAM Cache",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/FrontPanelControlButtons",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Used for system management, status indicators, and user interaction",
+        "rdfs:label": "Front Panel Control Buttons",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/RAM64GBDDR4",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Used to dissipate heat generated by the processor",
-        "rdfs:label": "Heat Sink",
+        "rdfs:comment": "Memory for data processing and management",
+        "rdfs:label": "RAM (64GB DDR4)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
@@ -1301,52 +1083,104 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/ServerHardwareCPURAMStorage",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Physical hardware on which VMware runs",
-        "rdfs:label": "Server Hardware (CPU/RAM/Storage)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/SSDStorage1TB",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "For high-speed storage",
-        "rdfs:label": "SSD Storage (1TB)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/ThermalPadOrHeatSink",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Used to dissipate heat generated during the operation of the SSD",
-        "rdfs:label": "Thermal Pad or Heat Sink",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/Connectors",
+        "@id": "http://example.com/terms/TapeDrive",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For connecting fiber cables to equipment",
-        "rdfs:label": "Connectors",
+        "rdfs:comment": "Used to read/write data onto magnetic tapes",
+        "rdfs:label": "Tape Drive",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/CloudStorageInfrastructure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Remote data storage servers",
+        "rdfs:label": "Cloud Storage Infrastructure",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/PowerDistributionUnitPDU",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For distributing power to mounted servers",
+        "rdfs:label": "Power Distribution Unit (PDU)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/SecuritySoftware",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "For threat detection and prevention",
+        "rdfs:label": "Security Software",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/SSDStorageDrive512GB",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Fast storage options like SSDs are included for the operating system and critical applications.",
+        "rdfs:label": "SSD Storage Drive (512GB)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/OperatingSystemEGWindowsServer",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "The software that the server runs, enabling it to perform its functions.",
+        "rdfs:label": "Operating System (e.g., Windows Server)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/StorageNodes",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Server units housing storage disks",
+        "rdfs:label": "Storage Nodes",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/BackupAndRecoverySystem",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Ensures data recovery and redundancy",
+        "rdfs:label": "Backup and Recovery System",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"
@@ -1379,6 +1213,409 @@
         ]
       },
       {
+        "@id": "http://example.com/terms/BillOfMaterials",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The list of the raw materials, sub-assemblies, intermediate assemblies, sub-components, parts, and the quantities of each needed to manufacture an end product. A Bill of Materials record can be used to evaluate the current materials satisfying a product's assembly conditions, as well as to evaluate the alternative materials that would meet the Bill of Materials requirements but with possibly different price requirements for assembly & delivery.",
+        "rdfs:label": "Bill of Materials",
+        "rdfs:range": [
+          "http://example.com/terms/hasItems",
+          "http://example.com/terms/hasProduct"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/InternalWiring",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Various cables and connectors used to connect internal components (e.g., motherboard to PSU, HDD to controller)",
+        "rdfs:label": "Internal Wiring",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/SecurityLockOptional",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Physical lock mechanism to secure the NAS system in a rack or on-site",
+        "rdfs:label": "Security Lock (optional)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Product",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The object, or system, or service made available for consumer use as of the consumer demand; products are bought as raw materials and then sold as finished goods.",
+        "rdfs:label": "Product",
+        "rdfs:range": [
+          "http://example.com/terms/bWCompetitiveRatio",
+          "http://example.com/terms/bWCompetitorCost",
+          "http://example.com/terms/bWCompetitorMargins",
+          "http://example.com/terms/competitorRetailPrice",
+          "http://example.com/terms/estCompetitorCost",
+          "http://example.com/terms/estCompetitorMargin",
+          "http://example.com/terms/grossMargin",
+          "http://example.com/terms/marginImprovement",
+          "http://example.com/terms/minimumPotentialCost",
+          "http://example.com/terms/minimumRetailPriceAtOptimalGrossMargin",
+          "http://example.com/terms/minimumRetailPriceBWCompetitorPrice",
+          "http://example.com/terms/potentialCostSavingsPerProduct",
+          "http://example.com/terms/productCostOfGoodsSold",
+          "http://example.com/terms/productDescription",
+          "http://example.com/terms/productName",
+          "http://example.com/terms/productRetailPrice"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/USBPortsConnectors",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For connecting external drives or devices for additional storage or backups",
+        "rdfs:label": "USB Ports/Connectors",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Inverter",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Converts DC to AC when utility power fails",
+        "rdfs:label": "Inverter",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Firmware",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Software stored on the SSD that controls its operation",
+        "rdfs:label": "Firmware",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Rails",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For installing servers in the rack",
+        "rdfs:label": "Rails",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/CableSleeves",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For protecting the fiber cables",
+        "rdfs:label": "Cable Sleeves",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/LEDIndicators",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "LED lights on the front panel indicating system status, disk activity and network connection",
+        "rdfs:label": "LED Indicators",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/ThermalPadOrHeatSink",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Used to dissipate heat generated during the operation of the SSD",
+        "rdfs:label": "Thermal Pad or Heat Sink",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/NetworkPorts",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "48 ports for LAN connectivity",
+        "rdfs:label": "Network Ports",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Manufacturer",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "rdfs:comment": "The company or entity that produces a specific component listed in the BOM, essentially identifying the source of that part within the product assembly; it provides information about who made the part, allowing for sourcing and potential supplier management.",
+        "rdfs:label": "Manufacturer",
+        "rdfs:range": [
+          "http://example.com/terms/activeSince",
+          "http://example.com/terms/manufacturerName",
+          "http://example.com/terms/ontimeDeliveryRating",
+          "http://example.com/terms/productQualityRating"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/LabelSticker",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Branding and specification information",
+        "rdfs:label": "Label/Sticker",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Motherboard",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "The main circuit board that connects all the internal components of the server.",
+        "rdfs:label": "Motherboard",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/RackmountRails",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Allow the server to be mounted into a standard 19\" rack.",
+        "rdfs:label": "Rackmount Rails",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/DVDDrive",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "For system installation or data backups.",
+        "rdfs:label": "DVD Drive",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/BatteryBackupUnitBBU",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Provides power to the server in case of power failure, ensuring no data loss.",
+        "rdfs:label": "Battery Backup Unit (BBU)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/SASHBA",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Interface card for connecting servers to SAS storage devices",
+        "rdfs:label": "SAS HBA",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/DriveController",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Manages data reading/writing on the drive",
+        "rdfs:label": "Drive Controller",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/FiberCableOM4",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "High-speed data transmission cable for long-distance",
+        "rdfs:label": "Fiber Cable (OM4)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/ChassisSmallComponentEnclosure",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Enclosure housing for micro components",
+        "rdfs:label": "Chassis (Small Component Enclosure)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/HeatSink",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Used to dissipate heat generated by the processor",
+        "rdfs:label": "Heat Sink",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/Connectors",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "For connecting fiber cables to equipment",
+        "rdfs:label": "Connectors",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/CPUDualCore",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Processor that handles the computation and data management tasks for the NAS",
+        "rdfs:label": "CPU (Dual-core)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/ServerHardwareCPURAMStorage",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Physical hardware on which VMware runs",
+        "rdfs:label": "Server Hardware (CPU/RAM/Storage)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/NANDFlashMemory",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "Non-volatile memory used to store data in SSDs",
+        "rdfs:label": "NAND Flash Memory",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/GraphicsProcessingUnitGPU",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "OEM",
+        "rdfs:comment": "For accelerating machine learning and AI tasks",
+        "rdfs:label": "Graphics Processing Unit (GPU)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/PCBPrintedCircuitBoard",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "The board that connects and supports all the internal components of the SSD",
+        "rdfs:label": "PCB (Printed Circuit Board)",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
+        "@id": "http://example.com/terms/CableManagementKit",
+        "@type": [
+          "rdfs:Class"
+        ],
+        "http://example.com/terms/category": "Non-OEM",
+        "rdfs:comment": "Keeps cables organized and allows for better airflow.",
+        "rdfs:label": "Cable Management Kit",
+        "rdfs:range": [],
+        "rdfs:subClassOf": [
+          "http://example.com/terms/Material"
+        ]
+      },
+      {
         "@id": "http://example.com/terms/RAM32GBDDR4",
         "@type": [
           "rdfs:Class"
@@ -1405,247 +1642,13 @@
         ]
       },
       {
-        "@id": "http://example.com/terms/RackmountRails",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Allow the server to be mounted into a standard 19\" rack.",
-        "rdfs:label": "Rackmount Rails",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/SASHBA",
+        "@id": "http://example.com/terms/SSDStorage1TB",
         "@type": [
           "rdfs:Class"
         ],
         "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Interface card for connecting servers to SAS storage devices",
-        "rdfs:label": "SAS HBA",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/Firmware",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Software stored on the SSD that controls its operation",
-        "rdfs:label": "Firmware",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/ManagementInterface",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For configuring and monitoring the switch",
-        "rdfs:label": "Management Interface",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/HardDiskDriveHDD2TB",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "High-capacity storage drive for data centers",
-        "rdfs:label": "Hard Disk Drive (HDD 2TB)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/DriveController",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Manages data reading/writing on the drive",
-        "rdfs:label": "Drive Controller",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/RouterHardware",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For routing data between networks",
-        "rdfs:label": "Router Hardware",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/TapeDrive",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Used to read/write data onto magnetic tapes",
-        "rdfs:label": "Tape Drive",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/DriveMechanism",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Handles the operation of the tape drive",
-        "rdfs:label": "Drive Mechanism",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/ExternalPowerAdapter",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For models that require external power for backup or remote access functionality",
-        "rdfs:label": "External Power Adapter",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/BillOfMaterialsItem",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "rdfs:comment": "A Bill of Materials Item specifies an individual material condition that must be met for a Bill of Materials Entry. While the specific Material referenced by \"has Material\" could change, the quantity and the material class of the Bill of Materials Item cannot be changed, as they indicate the requirements for assembly of the Product represented by the Bill of Materials",
-        "rdfs:label": "Bill of Materials Item",
-        "rdfs:range": [
-          "http://example.com/terms/hasMaterialClass",
-          "http://example.com/terms/quantity",
-          "http://example.com/terms/hasMaterial"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/StorageDrives",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "For use in the RAID array",
-        "rdfs:label": "Storage Drives",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/LabelSticker",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Branding and specification information",
-        "rdfs:label": "Label/Sticker",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/StorageDrives500GBSSD",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Used for fast storage in the compute node",
-        "rdfs:label": "Storage Drives (500GB SSD)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/DVDDrive",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "For system installation or data backups.",
-        "rdfs:label": "DVD Drive",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/PowerDistributionUnitPDU",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "For distributing power to mounted servers",
-        "rdfs:label": "Power Distribution Unit (PDU)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/RAM4GBDDR4",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "OEM",
-        "rdfs:comment": "Memory module used to temporarily store data and improve performance",
-        "rdfs:label": "RAM (4GB DDR4)",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/StorageNodes",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "Server units housing storage disks",
-        "rdfs:label": "Storage Nodes",
-        "rdfs:range": [],
-        "rdfs:subClassOf": [
-          "http://example.com/terms/Material"
-        ]
-      },
-      {
-        "@id": "http://example.com/terms/Chassis42URackmountEnclosure",
-        "@type": [
-          "rdfs:Class"
-        ],
-        "http://example.com/terms/category": "Non-OEM",
-        "rdfs:comment": "The physical case that houses all the server’s internal components. The 42U size is standard for rackmount servers.",
-        "rdfs:label": "Chassis (42U Rackmount Enclosure)",
+        "rdfs:comment": "For high-speed storage",
+        "rdfs:label": "SSD Storage (1TB)",
         "rdfs:range": [],
         "rdfs:subClassOf": [
           "http://example.com/terms/Material"

@@ -31,7 +31,13 @@ impl JsonLdInstance {
                         // Add to existing array
                         let array = current.as_array_mut().unwrap();
                         let mut set: HashSet<Value> = array.drain(..).collect();
-                        set.insert(value);
+                        if matches!(value, Value::Array(_)) {
+                            let new_set: HashSet<Value> =
+                                value.as_array().unwrap().iter().cloned().collect();
+                            set.extend(new_set);
+                        } else {
+                            set.insert(value);
+                        }
                         *array = set.into_iter().collect();
                     } else {
                         // Convert to array with both values
