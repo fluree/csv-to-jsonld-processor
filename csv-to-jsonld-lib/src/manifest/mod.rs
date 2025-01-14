@@ -1,9 +1,13 @@
 use crate::contains_variant;
 use crate::error::ProcessorError;
 use crate::types::{ColumnOverride, ExtraItem, PivotColumn};
+use json_comments::StripComments;
+use regex::Regex;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer};
+use serde_json::{json, Value};
 use std::fmt;
+use std::io::{BufRead, Read};
 use std::path::PathBuf;
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
@@ -147,12 +151,26 @@ pub struct Manifest {
     pub instances: ImportSection,
 }
 
+fn strip_comments(jsonc: &str) -> String {
+    let block_comment_re = Regex::new(r"/\*.*?\*/").unwrap();
+    let line_comment_re = Regex::new(r"//.*").unwrap();
+
+    let no_block_comments = block_comment_re.replace_all(jsonc, "");
+    line_comment_re
+        .replace_all(&no_block_comments, "")
+        .to_string()
+}
+
 impl Manifest {
     pub fn from_file<P: Into<PathBuf>>(path: P) -> Result<Self, ProcessorError> {
         let path = path.into();
         tracing::info!("Loading manifest from {:?}", path);
         let file = std::fs::File::open(&path)?;
-        let manifest = serde_json::from_reader(file)?;
+        let reader = std::io::BufReader::new(file);
+        let mut bytes_vec = Vec::new();
+        let mut stripped_reader = StripComments::new(reader);
+        stripped_reader.read_to_end(&mut bytes_vec)?;
+        let manifest = serde_json::from_slice(&bytes_vec)?;
         tracing::info!("Successfully loaded manifest: {}", path.display());
         Ok(manifest)
     }
