@@ -23,10 +23,6 @@ impl VocabularyManager {
         }
     }
 
-    pub fn get_vocabulary(&self) -> VocabularyMap {
-        self.processor.get_vocabulary()
-    }
-
     pub async fn process_vocabulary(
         &mut self,
         step: ImportStep,
@@ -45,8 +41,11 @@ impl VocabularyManager {
     //         .await
     // }
 
-    pub async fn save_vocabulary(&mut self, output_path: &PathBuf) -> Result<(), ProcessorError> {
-        let vocabulary = self.processor.take_vocabulary();
+    pub async fn save_vocabulary(
+        &self,
+        vocabulary: VocabularyMap,
+        output_path: &PathBuf,
+    ) -> Result<(), ProcessorError> {
         self.serializer
             .save_vocabulary(vocabulary, output_path)
             .await

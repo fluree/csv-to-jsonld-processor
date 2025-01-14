@@ -28,6 +28,10 @@ impl InstanceManager {
         self.processor.set_vocabulary(vocabulary);
     }
 
+    pub fn take_vocabulary(&mut self) -> VocabularyMap {
+        self.processor.take_vocabulary()
+    }
+
     pub async fn process_simple_instance(
         &mut self,
         step: &ImportStep,
@@ -58,7 +62,7 @@ impl InstanceManager {
             .await
     }
 
-    pub async fn save_instances(&mut self, output_path: &PathBuf) -> Result<(), ProcessorError> {
+    pub async fn save_instances(&self, output_path: &PathBuf) -> Result<(), ProcessorError> {
         let vocabulary = self.processor.get_vocabulary();
         self.serializer
             .save_instances(self.processor.get_instances(), output_path, vocabulary)

@@ -18,7 +18,7 @@ impl InstanceSerializer {
         Self { manifest }
     }
 
-    fn create_context(&self, vocabulary: VocabularyMap) -> Map<String, serde_json::Value> {
+    fn create_context(&self, vocabulary: &VocabularyMap) -> Map<String, serde_json::Value> {
         let mut context = Map::new();
 
         // Add standard prefixes
@@ -59,7 +59,10 @@ impl InstanceSerializer {
 
             // If range is a class (not xsd:*), mark as @id type
             if let Some(range) = &prop.range {
-                if range.iter().any(|r| matches!(r, PropertyDatatype::URI(_))) {
+                if range.iter().any(|r| {
+                    matches!(r, PropertyDatatype::URI(_))
+                        || matches!(r, PropertyDatatype::Picklist(_))
+                }) {
                     property_context.insert(
                         "@type".to_string(),
                         serde_json::Value::String("@id".to_string()),
@@ -82,7 +85,7 @@ impl InstanceSerializer {
         &self,
         instances: &HashMap<String, JsonLdInstance>,
         output_path: &PathBuf,
-        vocabulary: VocabularyMap,
+        vocabulary: &VocabularyMap,
     ) -> Result<(), ProcessorError> {
         let instances = JsonLdInstances {
             context: self.create_context(vocabulary),

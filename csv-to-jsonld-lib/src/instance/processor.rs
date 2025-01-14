@@ -45,7 +45,11 @@ impl InstanceProcessor {
         self.vocabulary = Some(vocabulary);
     }
 
-    pub fn get_vocabulary(&mut self) -> VocabularyMap {
+    pub fn get_vocabulary(&self) -> &VocabularyMap {
+        self.vocabulary.as_ref().unwrap()
+    }
+
+    pub fn take_vocabulary(&mut self) -> VocabularyMap {
         self.vocabulary.take().unwrap()
     }
 
@@ -366,152 +370,192 @@ impl InstanceProcessor {
                                     })
                                 });
 
-                            let final_value = match &header.datatype {
+                            let vec_value = if let Some(delimiter) = step.delimit_values_on.as_ref()
+                            {
+                                if header.datatype == PropertyDatatype::String {
+                                    // We won't parse strings for delimiter
+                                    vec![value]
+                                } else {
+                                    value.split(delimiter.as_str()).map(|s| s.trim()).collect()
+                                }
+                            } else {
+                                vec![value]
+                            };
+
+                            let mut final_values = vec![];
+
+                            match &header.datatype {
                                 PropertyDatatype::ID => {
                                     // We have already set the ID / identifier value above and can skip a header of type ID
                                     continue;
                                 }
                                 PropertyDatatype::Date => {
-                                    let trimmed_value = value.trim();
-                                    let date = DATE_FORMATS
-                                        .iter()
-                                        .find_map(|fmt| {
-                                            // First try exact parsing
-                                            if let Ok(date) = chrono::NaiveDate::parse_from_str(
-                                                trimmed_value,
-                                                fmt,
-                                            ) {
-                                                return Some(date);
-                                            }
+                                    for value in vec_value {
+                                        let trimmed_value = value.trim();
+                                        let date = DATE_FORMATS
+                                            .iter()
+                                            .find_map(|fmt| {
+                                                // First try exact parsing
+                                                if let Ok(date) = chrono::NaiveDate::parse_from_str(
+                                                    trimmed_value,
+                                                    fmt,
+                                                ) {
+                                                    return Some(date);
+                                                }
 
-                                            // Handle partial dates
-                                            match *fmt {
-                                                // Year only - default to Jan 1
-                                                "%Y" => {
-                                                    trimmed_value.parse::<i32>().ok().and_then(
-                                                        |year| {
-                                                            chrono::NaiveDate::from_ymd_opt(
-                                                                year, 1, // January
-                                                                1, // 1st
-                                                            )
-                                                        },
-                                                    )
-                                                }
-                                                // Year-month formats - default to 1st of month
-                                                "%Y-%m" | "%Y/%m" | "%b %Y" | "%B %Y" | "%m-%Y" => {
-                                                    if let Ok(parsed) =
-                                                        chrono::NaiveDate::parse_from_str(
-                                                            &format!(
-                                                                "{}-01",
-                                                                trimmed_value.replace("/", "-")
-                                                            ),
-                                                            "%Y-%m-%d",
+                                                // Handle partial dates
+                                                match *fmt {
+                                                    // Year only - default to Jan 1
+                                                    "%Y" => {
+                                                        trimmed_value.parse::<i32>().ok().and_then(
+                                                            |year| {
+                                                                chrono::NaiveDate::from_ymd_opt(
+                                                                    year, 1, // January
+                                                                    1, // 1st
+                                                                )
+                                                            },
                                                         )
-                                                    {
-                                                        Some(parsed)
-                                                    } else if let Ok(parsed) =
-                                                        chrono::NaiveDate::parse_from_str(
-                                                            &format!("01 {}", trimmed_value),
-                                                            "%d %B %Y",
-                                                        )
-                                                    {
-                                                        Some(parsed)
-                                                    } else if let Ok(parsed) =
-                                                        chrono::NaiveDate::parse_from_str(
-                                                            &format!("01 {}", trimmed_value),
-                                                            "%d %b %Y",
-                                                        )
-                                                    {
-                                                        Some(parsed)
-                                                    } else {
-                                                        None
                                                     }
+                                                    // Year-month formats - default to 1st of month
+                                                    "%Y-%m" | "%Y/%m" | "%b %Y" | "%B %Y"
+                                                    | "%m-%Y" => {
+                                                        if let Ok(parsed) =
+                                                            chrono::NaiveDate::parse_from_str(
+                                                                &format!(
+                                                                    "{}-01",
+                                                                    trimmed_value.replace("/", "-")
+                                                                ),
+                                                                "%Y-%m-%d",
+                                                            )
+                                                        {
+                                                            Some(parsed)
+                                                        } else if let Ok(parsed) =
+                                                            chrono::NaiveDate::parse_from_str(
+                                                                &format!("01 {}", trimmed_value),
+                                                                "%d %B %Y",
+                                                            )
+                                                        {
+                                                            Some(parsed)
+                                                        } else if let Ok(parsed) =
+                                                            chrono::NaiveDate::parse_from_str(
+                                                                &format!("01 {}", trimmed_value),
+                                                                "%d %b %Y",
+                                                            )
+                                                        {
+                                                            Some(parsed)
+                                                        } else {
+                                                            None
+                                                        }
+                                                    }
+                                                    _ => None,
                                                 }
-                                                _ => None,
-                                            }
-                                        })
-                                        .ok_or_else(|| {
-                                            ProcessorError::Processing(format!(
-                                                "Failed to parse date {:#?}",
-                                                value
-                                            ))
-                                        })?;
-                                    serde_json::Value::String(date.format("%Y-%m-%d").to_string())
+                                            })
+                                            .ok_or_else(|| {
+                                                ProcessorError::Processing(format!(
+                                                    "Failed to parse date {:#?}",
+                                                    value
+                                                ))
+                                            })?;
+                                        final_values.push(serde_json::Value::String(
+                                            date.format("%Y-%m-%d").to_string(),
+                                        ));
+                                    }
                                 }
                                 PropertyDatatype::Integer => {
-                                    let cleaned_value = value.replace(['$', '%', ','], "");
-                                    if let Ok(num) = cleaned_value.parse::<i64>() {
-                                        serde_json::Value::Number(serde_json::Number::from(num))
-                                    } else if self.is_strict {
-                                        return Err(ProcessorError::Processing(format!(
-                                            "[Column: {}, Row: {}], Invalid integer value: {}",
-                                            header.name,
-                                            result_row_num + 1,
-                                            value
-                                        )));
-                                    } else {
-                                        tracing::warn!(
+                                    for value in vec_value {
+                                        let cleaned_value = value.replace(['$', '%', ','], "");
+                                        if let Ok(num) = cleaned_value.parse::<i64>() {
+                                            final_values.push(serde_json::Value::Number(
+                                                serde_json::Number::from(num),
+                                            ))
+                                        } else if self.is_strict {
+                                            return Err(ProcessorError::Processing(format!(
+                                                "[Column: {}, Row: {}], Invalid integer value: {}",
+                                                header.name,
+                                                result_row_num + 1,
+                                                value
+                                            )));
+                                        } else {
+                                            tracing::warn!(
                                                 "[Column: {}, Row: {}], Invalid integer value: {}. Serializing as string.",
                                                 header.name,
                                                 result_row_num + 1,
                                                 value
                                             );
-                                        serde_json::Value::String(cleaned_value.to_string())
+                                            final_values
+                                                .push(serde_json::Value::String(value.to_string()));
+                                        }
                                     }
                                 }
                                 PropertyDatatype::Decimal => {
-                                    let cleaned_value = value.replace(['$', '%', ','], "");
-                                    if let Ok(num) = cleaned_value.parse::<f64>() {
-                                        serde_json::Value::Number(
-                                            serde_json::Number::from_f64(num).unwrap(),
-                                        )
-                                    } else {
-                                        serde_json::Value::String(cleaned_value.to_string())
+                                    for value in vec_value {
+                                        {
+                                            let cleaned_value = value.replace(['$', '%', ','], "");
+                                            if let Ok(num) = cleaned_value.parse::<f64>() {
+                                                final_values.push(serde_json::Value::Number(
+                                                    serde_json::Number::from_f64(num).unwrap(),
+                                                ))
+                                            } else {
+                                                final_values.push(serde_json::Value::String(
+                                                    cleaned_value.to_string(),
+                                                ))
+                                            }
+                                        }
                                     }
                                 }
                                 PropertyDatatype::String => {
-                                    serde_json::Value::String(value.to_string())
-                                }
-                                PropertyDatatype::Boolean => {
-                                    let cleaned_value = value.to_lowercase();
-                                    if cleaned_value == "true"
-                                        || cleaned_value == "false"
-                                        || cleaned_value == "1"
-                                        || cleaned_value == "0"
-                                        || cleaned_value == "yes"
-                                        || cleaned_value == "no"
-                                    {
-                                        serde_json::Value::Bool(
-                                            cleaned_value == "true"
-                                                || cleaned_value == "1"
-                                                || cleaned_value == "yes",
-                                        )
-                                    } else {
-                                        return Err(ProcessorError::Processing(format!(
-                                            "[Column: {}, Row: {}], Invalid boolean value: {}",
-                                            header.name,
-                                            result_row_num + 1,
-                                            value
-                                        )));
+                                    for value in vec_value {
+                                        final_values
+                                            .push(serde_json::Value::String(value.to_string()))
                                     }
                                 }
-                                PropertyDatatype::URI(target_class) => self
-                                    .process_class_restricted_value(
-                                        &class_type,
-                                        &header.name,
-                                        value,
-                                        target_class,
-                                        &header.datatype,
-                                    )?,
+                                PropertyDatatype::Boolean => {
+                                    for value in vec_value {
+                                        let cleaned_value = value.to_lowercase();
+                                        if cleaned_value == "true"
+                                            || cleaned_value == "false"
+                                            || cleaned_value == "1"
+                                            || cleaned_value == "0"
+                                            || cleaned_value == "yes"
+                                            || cleaned_value == "no"
+                                        {
+                                            final_values.push(serde_json::Value::Bool(
+                                                cleaned_value == "true"
+                                                    || cleaned_value == "1"
+                                                    || cleaned_value == "yes",
+                                            ))
+                                        } else {
+                                            return Err(ProcessorError::Processing(format!(
+                                                "[Column: {}, Row: {}], Invalid boolean value: {}",
+                                                header.name,
+                                                result_row_num + 1,
+                                                value
+                                            )));
+                                        }
+                                    }
+                                }
+                                PropertyDatatype::URI(target_class) => {
+                                    for value in vec_value {
+                                        final_values.push(self.process_class_restricted_value(
+                                            &class_type,
+                                            &header.name,
+                                            value,
+                                            target_class,
+                                            &header.datatype,
+                                        )?)
+                                    }
+                                }
                                 PropertyDatatype::Picklist(target_class) => {
                                     tracing::trace!("Processing picklist value: {}", value);
-                                    self.process_class_restricted_value(
-                                        &class_type,
-                                        &header.name,
-                                        value,
-                                        target_class,
-                                        &header.datatype,
-                                    )?
+                                    for value in vec_value {
+                                        final_values.push(self.process_class_restricted_value(
+                                            &class_type,
+                                            &header.name,
+                                            value,
+                                            target_class,
+                                            &header.datatype,
+                                        )?)
+                                    }
                                 }
                             };
 
@@ -530,7 +574,7 @@ impl InstanceProcessor {
                                 let id = pivot_property_entry.get("@id").unwrap().as_str().unwrap();
                                 // Handle numeric values
                                 let mut properties = serde_json::Map::new();
-                                properties.insert(header.name.clone(), final_value);
+                                properties.insert(header.name.clone(), final_values.into());
 
                                 let new_instance = JsonLdInstance {
                                     id: IdOpt::String(id.to_string()),
@@ -550,7 +594,7 @@ impl InstanceProcessor {
                                 };
                             } else {
                                 // Handle numeric values
-                                properties.insert(header.name.clone(), final_value);
+                                properties.insert(header.name.clone(), final_values.into());
                             }
                         }
                     }

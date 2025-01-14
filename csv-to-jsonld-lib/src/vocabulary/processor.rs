@@ -39,14 +39,6 @@ impl VocabularyProcessor {
         }
     }
 
-    pub fn get_vocabulary(&self) -> VocabularyMap {
-        VocabularyMap {
-            classes: self.vocabulary.classes.clone(),
-            properties: self.vocabulary.properties.clone(),
-            identifiers: self.vocabulary.identifiers.clone(),
-        }
-    }
-
     pub fn from_headers(
         headers: &csv::StringRecord,
         mut step: ImportStep,

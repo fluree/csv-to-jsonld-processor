@@ -400,7 +400,7 @@ impl VocabularyMap {
         class_name: String,
         instance_id: IdOpt,
     ) -> Result<(), ProcessorError> {
-        tracing::debug!(
+        tracing::trace!(
             "Updating vocabulary with picklist instance: {} for class: {}",
             instance_id,
             class_name

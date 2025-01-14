@@ -116,6 +116,8 @@ pub struct ImportStep {
     pub sub_class_property: Option<String>,
     #[serde(rename = "pivotColumns")]
     pub pivot_columns: Option<Vec<PivotColumn>>,
+    #[serde(rename = "delimitValuesOn")]
+    pub delimit_values_on: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -202,6 +204,15 @@ impl Manifest {
                 .iter()
                 .filter(|t| matches!(t, StepType::InstanceStep(_)))
                 .collect();
+
+            if step.delimit_values_on.is_some() && step.pivot_columns.is_some() {
+                tracing::error!(
+                    "Cannot have both delimitValuesOn and pivotColumns in the same step"
+                );
+                return Err(ProcessorError::InvalidManifest(
+                    "Cannot have both delimitValuesOn and pivotColumns in the same step".into(),
+                ));
+            }
 
             if !contains_variant!(instance_steps, StepType::InstanceStep(_)) {
                 tracing::error!("Invalid instance step type: {:?}", step.types);

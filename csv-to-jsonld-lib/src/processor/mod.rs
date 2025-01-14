@@ -58,12 +58,12 @@ impl Processor {
         }
 
         // Clone the vocabulary for the instance processor before consuming it to write to disk
-        let vocabulary = self.vocabulary_manager.get_vocabulary();
+        let vocabulary = self.vocabulary_manager.processor.take_vocabulary();
 
         // Generate and save vocabulary
-        self.vocabulary_manager
-            .save_vocabulary(&self.output_path)
-            .await?;
+        // self.vocabulary_manager
+        //     .save_vocabulary(&self.output_path)
+        //     .await?;
 
         self.instance_manager.set_vocabulary(vocabulary);
 
@@ -101,9 +101,14 @@ impl Processor {
             self.process_instance_step(&step).await?;
         }
 
-        // Save instance data
+        // Save instance data; this takes place before save_vocabulary, which will take the vocabulary in memory
         self.instance_manager
             .save_instances(&self.output_path)
+            .await?;
+
+        let vocabulary = self.instance_manager.take_vocabulary();
+        self.vocabulary_manager
+            .save_vocabulary(vocabulary, &self.output_path)
             .await?;
 
         tracing::info!("Processing completed successfully");
