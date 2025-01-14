@@ -25,7 +25,7 @@ enum Commands {
     /// Process CSV files according to a manifest
     Process {
         /// Path to the manifest file that specifies the CSV processing configuration
-        #[arg(short, long)]
+        #[arg(short, long, value_name = "PATH TO MANIFEST")]
         manifest: PathBuf,
 
         /// Enable strict mode for more rigorous validation
@@ -33,23 +33,33 @@ enum Commands {
         strict: bool,
 
         /// Output directory for generated JSON-LD files
-        #[arg(short, long)]
+        #[arg(short, long, value_name = "OUTPUT DIRECTORY PATH")]
         output: Option<PathBuf>,
     },
     /// Generate a manifest template
     GenerateManifest {
         /// Type of manifest template to generate (basic/full)
-        #[arg(short, long, default_value = "basic", ren)]
-        type_: String,
+        #[arg(short = 't', long = "type", default_value = "basic")]
+        template_type: String,
 
         /// Output path for the generated manifest
-        #[arg(short, long, default_value = "manifest.jsonc")]
+        #[arg(
+            short,
+            long,
+            default_value = "manifest.jsonc",
+            value_name = "OUTPUT PATH"
+        )]
         output: PathBuf,
     },
     /// Validate a manifest file against the configuration schema
     Validate {
         /// Path to the manifest file to validate
-        #[arg(short, long, default_value = "manifest.jsonc")]
+        #[arg(
+            short,
+            long,
+            default_value = "manifest.jsonc",
+            value_name = "PATH TO MANIFEST"
+        )]
         manifest: PathBuf,
     },
 }
