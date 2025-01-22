@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::error::ProcessorError;
 use crate::manifest::{ImportStep, InstanceStep, StepType};
 use crate::types::{Header, IdOpt, JsonLdInstance, PivotColumn, PropertyDatatype, VocabularyMap};
-use crate::utils::{to_kebab_case, to_pascal_case, DATE_FORMATS};
+use crate::utils::{expand_iri_with_base, to_kebab_case, to_pascal_case, DATE_FORMATS};
 use crate::Manifest;
 
 pub struct InstanceProcessor {
@@ -58,13 +58,15 @@ impl InstanceProcessor {
     }
 
     fn validate_headers(
-        &self,
+        &mut self,
         headers: &[String],
         class_type: &str,
         identifier_label: &str,
         pivot_columns: Option<&Vec<PivotColumn>>,
+        map_to_label: Option<&String>,
     ) -> Result<Vec<Option<Header>>, ProcessorError> {
-        let valid_labels = self.get_valid_property_labels(class_type, pivot_columns);
+        let valid_labels =
+            self.get_valid_property_labels(class_type, pivot_columns, map_to_label)?;
 
         let mut unknown_headers = Vec::new();
         let ignorable_headers = match self.ignore.get(class_type) {
@@ -87,6 +89,7 @@ impl InstanceProcessor {
                 let final_header = Header {
                     name: header.clone(),
                     datatype: PropertyDatatype::ID,
+                    is_label_header: false,
                 };
                 final_headers.push(Some(final_header));
                 continue;
@@ -126,13 +129,15 @@ impl InstanceProcessor {
     }
 
     fn get_valid_property_labels(
-        &self,
+        &mut self,
         class_type: &str,
         pivot_columns: Option<&Vec<PivotColumn>>,
-    ) -> HashSet<Header> {
+        map_to_label: Option<&String>,
+    ) -> Result<HashSet<Header>, ProcessorError> {
         let mut valid_labels: HashSet<Option<Header>> = HashSet::new();
-        let vocab = self.vocabulary.as_ref().unwrap();
-        let class_iri = format!("{}{}", self.manifest.model.base_iri, class_type);
+        let vocab = self.vocabulary.as_mut().unwrap();
+        // let class_iri = format!("{}{}", self.manifest.model.base_iri, class_type);
+        let class_iri = expand_iri_with_base(&self.manifest.model.base_iri, class_type);
 
         if let Some(pivot_columns) = pivot_columns {
             for pivot_column in pivot_columns {
@@ -173,10 +178,13 @@ impl InstanceProcessor {
         // Get properties from class's rdfs:range
         if let Some(class) = vocab
             .classes
-            .values()
+            .values_mut()
             .find(|c| c.id.final_iri() == class_iri)
         {
-            if let Some(props) = &class.range {
+            if let Some(props) = &mut class.range {
+                // if map_to_label.is_some() {
+                //     let mapped_column_exists
+                // }
                 for prop_iri in props {
                     // Get property label from vocabulary
                     if let Some(prop) = vocab.properties.values().find(|p| match prop_iri {
@@ -201,9 +209,39 @@ impl InstanceProcessor {
         }
 
         // drain / filter any entries in valid labels that are None
-        let valid_labels: HashSet<Header> = valid_labels.into_iter().flatten().collect();
+        let mut valid_labels: HashSet<Header> = valid_labels.into_iter().flatten().collect();
 
-        valid_labels
+        if let Some(map_to_label) = map_to_label {
+            let mut map_to_label_header = valid_labels.take(&Header {
+                name: map_to_label.clone(),
+                ..Default::default()
+            });
+            // let mut map_to_label_header = valid_labels
+            //     .clone()
+            //     .into_iter()
+            //     .find(|h| &h.name == map_to_label);
+            match map_to_label_header.as_mut() {
+                Some(header) => {
+                    header.set_is_label_header(true);
+                    valid_labels.insert(header.clone());
+                }
+                None => {
+                    let message = format!(
+                        "Column for mapToLabel ({}) is either not of type, String, or is not found in valid labels for class '{}'. Expected one of: {}",
+                        map_to_label,
+                        class_type,
+                        valid_labels.iter().map(|h| h.name.clone()).collect::<Vec<_>>().join(", ")
+                    );
+                    if self.is_strict {
+                        return Err(ProcessorError::InvalidManifest(message));
+                    } else {
+                        tracing::warn!(message);
+                    }
+                }
+            }
+        }
+
+        Ok(valid_labels)
     }
 
     // fn drop_ignore(
@@ -271,7 +309,7 @@ impl InstanceProcessor {
                 "No identifier property found for class '{}'. To import instances of this class, your data model CSVs must indicate which column of the instance data will be used as the identifier (\"@id\") for instances of this class. Or, you must provide an \"override\" where the appropriate column maps to \"@id\".",
                 class_type
             ))
-        })?;
+        })?.clone();
 
         let file_path = PathBuf::from(instance_path).join(&step.path);
         tracing::debug!("Reading instance data from {:?}", file_path);
@@ -302,8 +340,9 @@ impl InstanceProcessor {
         let headers = self.validate_headers(
             &headers,
             &class_type,
-            identifier_label,
+            &identifier_label,
             step.pivot_columns.as_ref(),
+            step.map_to_label.as_ref(),
         )?;
 
         // Find the identifier column index
@@ -317,8 +356,13 @@ impl InstanceProcessor {
             })
             .ok_or_else(|| {
                 ProcessorError::Processing(format!(
-                    "Identifier column '{}' not found in headers",
-                    identifier_label
+                    "Identifier column '{}' not found in headers: {}",
+                    identifier_label,
+                    headers
+                        .iter()
+                        .filter_map(|opt_head| opt_head.as_ref().map(|h| h.name.clone()))
+                        .collect::<Vec<String>>()
+                        .join(", ")
                 ))
             })?;
 
@@ -595,7 +639,13 @@ impl InstanceProcessor {
                                 };
                             } else {
                                 // Handle numeric values
-                                properties.insert(header.name.clone(), final_values.into());
+                                if header.is_label_header {
+                                    properties
+                                        .insert(header.name.clone(), final_values.clone().into());
+                                    properties.insert("label".to_string(), final_values.into());
+                                } else {
+                                    properties.insert(header.name.clone(), final_values.into());
+                                }
                             }
                         }
                     }
@@ -616,10 +666,12 @@ impl InstanceProcessor {
 
             self.update_or_insert_instance(instance.clone())?;
             if is_picklist_step {
+                let final_instance_id =
+                    instance_id.with_base_iri(&self.manifest.instances.base_iri);
                 self.vocabulary
                     .as_mut()
                     .unwrap()
-                    .update_or_insert_picklist_instance(class_type.clone(), instance_id)?;
+                    .update_or_insert_picklist_instance(class_type.clone(), final_instance_id)?;
             }
         }
 
@@ -695,18 +747,27 @@ impl InstanceProcessor {
                     class_match, value, header, class_match, class_type
                 ))
             })?;
-            let iri = format!(
-                "{}/{}",
-                to_kebab_case(class_match.to_string().as_ref()),
-                value
+            // let iri = format!(
+            //     "{}{}/{}",
+            //     self.manifest.instances.base_iri,
+            //     to_kebab_case(class_match.to_string().as_ref()),
+            //     value
+            // );
+            let iri = expand_iri_with_base(
+                &self.manifest.instances.base_iri,
+                &format!(
+                    "{}/{}",
+                    to_kebab_case(class_match.to_string().as_ref()),
+                    value
+                ),
             );
             let does_picklist_contain_value = enum_picklist
                 .iter()
                 .any(|picklist_value| picklist_value.to_string() == iri);
             if !does_picklist_contain_value {
                 let error_string = format!(
-                    "Value \"{}\" for property \"{}\" not found in {} picklist: {:?}",
-                    value, header, class_match, enum_picklist
+                    "Value \"{}\" ({}) for property \"{}\" not found in {} picklist: {:?}",
+                    value, iri, header, class_match, enum_picklist
                 );
                 if self.is_strict {
                     return Err(ProcessorError::Processing(error_string));
@@ -899,8 +960,8 @@ impl InstanceProcessor {
             .position(|h| h == identifier_label)
             .ok_or_else(|| {
                 ProcessorError::Processing(format!(
-                    "Identifier column '{}' not found in headers",
-                    identifier_label
+                    "Identifier column '{}' not found in headers of CSV ({}): {:#?}",
+                    identifier_label, step.path, headers
                 ))
             })?;
 
@@ -1066,8 +1127,8 @@ impl InstanceProcessor {
             .position(|h| h == identifier_label)
             .ok_or_else(|| {
                 ProcessorError::Processing(format!(
-                    "Identifier column '{}' not found in headers",
-                    identifier_label
+                    "Identifier column '{}' not found in headers of CSV ({}): {:#?}",
+                    identifier_label, step.path, headers
                 ))
             })?;
 

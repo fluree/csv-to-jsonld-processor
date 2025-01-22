@@ -108,6 +108,23 @@ impl Serialize for PropertyDatatype {
 pub struct Header {
     pub name: String,
     pub datatype: PropertyDatatype,
+    pub is_label_header: bool,
+}
+
+impl Default for Header {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            datatype: PropertyDatatype::String,
+            is_label_header: false,
+        }
+    }
+}
+
+impl Header {
+    pub fn set_is_label_header(&mut self, is_label_header: bool) {
+        self.is_label_header = is_label_header;
+    }
 }
 
 impl TryFrom<&VocabularyTerm> for Header {
@@ -129,6 +146,7 @@ impl TryFrom<&VocabularyTerm> for Header {
         Ok(Self {
             name,
             datatype: datatype.clone(),
+            is_label_header: false,
         })
     }
 }

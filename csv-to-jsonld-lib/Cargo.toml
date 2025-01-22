@@ -19,6 +19,7 @@ chrono = "0.4.39"
 uuid = { version = "1.11.0", features = ["v4"] }
 regex = "1.11.1"
 json_comments = "0.2.2"
+url = "2.5.4"
 
 [lib]
 name = "csv_to_jsonld"

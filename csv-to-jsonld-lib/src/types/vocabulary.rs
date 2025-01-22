@@ -1,4 +1,4 @@
-use crate::utils::{are_conflicting, normalize_label_for_iri, to_camel_case};
+use crate::utils::{are_conflicting, expand_iri_with_base, normalize_label_for_iri, to_camel_case};
 use crate::{error::ProcessorError, utils::to_pascal_case};
 use anyhow::Result;
 use serde::{Serialize, Serializer};
@@ -115,9 +115,22 @@ impl IdOpt {
 
     pub fn with_base_iri(&self, base_iri: &str) -> Self {
         match self {
+            IdOpt::String(ref s) => IdOpt::String(expand_iri_with_base(base_iri, s)),
+            IdOpt::ReplacementMap {
+                ref replacement_id,
+                ref original_id,
+            } => IdOpt::ReplacementMap {
+                replacement_id: expand_iri_with_base(base_iri, replacement_id),
+                original_id: original_id.clone(),
+            },
+        }
+    }
+
+    pub fn without_base_iri(&self, base_iri: &str) -> Self {
+        match self {
             IdOpt::String(ref s) => {
-                if !s.starts_with("http") {
-                    IdOpt::String(format!("{}{}", base_iri, s))
+                if s.starts_with(base_iri) {
+                    IdOpt::String(s.replace(base_iri, ""))
                 } else {
                     self.clone()
                 }
@@ -126,9 +139,9 @@ impl IdOpt {
                 ref replacement_id,
                 ref original_id,
             } => {
-                if !replacement_id.starts_with("http") {
+                if replacement_id.starts_with(base_iri) {
                     IdOpt::ReplacementMap {
-                        replacement_id: format!("{}{}", base_iri, replacement_id),
+                        replacement_id: replacement_id.replace(base_iri, ""),
                         original_id: original_id.clone(),
                     }
                 } else {

@@ -20,7 +20,7 @@ impl VocabularySerializer {
         vocabulary: VocabularyMap,
         output_path: &PathBuf,
     ) -> Result<(), ProcessorError> {
-        let ledger = "".to_string();
+        let ledger = self.manifest.ledger.clone();
         let label = self.manifest.name.clone();
         let comment = self.manifest.description.clone();
 

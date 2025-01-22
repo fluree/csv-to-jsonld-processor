@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -7,7 +7,7 @@ use super::mapping::{MappingConfig, RowValues, VocabularyColumnMapping};
 use crate::error::ProcessorError;
 use crate::manifest::{ImportStep, ModelStep, StepType};
 use crate::types::{IdOpt, OnEntity, PropertyDatatype, VocabularyMap, VocabularyTerm};
-use crate::utils::{map_xsd_type, to_pascal_case};
+use crate::utils::{expand_iri_with_base, map_xsd_type, to_pascal_case};
 use crate::{contains_variant, Manifest};
 
 pub struct VocabularyProcessor {
@@ -146,8 +146,6 @@ impl VocabularyProcessor {
 
         let mapping = Self::from_headers(headers, step, self.is_strict)?;
 
-        tracing::debug!("Vocabulary column mapping: {:?}", mapping);
-
         let ignorable_headers = self.ignore.get(step_path);
 
         let headers = match ignorable_headers {
@@ -174,7 +172,7 @@ impl VocabularyProcessor {
 
             let row_values = mapping.extract_values(&record, &headers)?;
 
-            tracing::debug!("Row values: {:#?}", row_values);
+            // tracing::debug!("Row values: {:#?}", row_values);
 
             self.process_class_term(&row_values, sub_class_of.clone())?;
             if !matches!(
@@ -185,6 +183,39 @@ impl VocabularyProcessor {
             }
         }
 
+        let picklist_classes = self
+            .vocabulary
+            .properties
+            .values()
+            .filter_map(|p| {
+                if let Some(PropertyDatatype::Picklist(class)) = p.range.as_ref()?.first() {
+                    class.as_ref().map(|string| {
+                        IdOpt::String(string.clone())
+                            .without_base_iri(&self.manifest.model.base_iri)
+                    })
+                    // class.as_ref().map(|string| IdOpt::String(string.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<IdOpt>>();
+
+        let picklist_classes = self
+            .class_properties
+            .keys()
+            .filter_map(|k| {
+                if picklist_classes.contains(&k.normalize().to_pascal_case()) {
+                    Some(k.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<IdOpt>>();
+
+        for class_id in picklist_classes {
+            self.handle_add_rdfs_label_property(&class_id)?;
+        }
+
         // Update class terms with their properties
         for (class_id, properties) in &self.class_properties {
             if let Some(class_term) = self.vocabulary.classes.get_mut(class_id) {
@@ -192,9 +223,13 @@ impl VocabularyProcessor {
                     properties
                         .iter()
                         .map(|p| {
-                            PropertyDatatype::URI(Some(format!(
-                                "{}{}",
-                                self.manifest.model.base_iri, p
+                            // PropertyDatatype::URI(Some(format!(
+                            //     "{}{}",
+                            //     self.manifest.model.base_iri, p
+                            // )))
+                            PropertyDatatype::URI(Some(expand_iri_with_base(
+                                &self.manifest.model.base_iri,
+                                p,
                             )))
                         })
                         .collect(),
@@ -310,13 +345,6 @@ impl VocabularyProcessor {
             ..
         } = row_values;
 
-        if property_name.is_some() && property_name.as_ref().unwrap() == &"subsidiary_of" {
-            tracing::debug!(
-                "[subsidiary_of] [process_property_term] row_values: {:#?}",
-                row_values
-            );
-        }
-
         let property = property_id.as_ref().unwrap();
         let property_name = property_name.unwrap_or_default();
         let property_desc = property_description.unwrap_or_default();
@@ -333,16 +361,26 @@ impl VocabularyProcessor {
             //     to_pascal_case(property_class)
             // );
             let value = match xsd_type {
-                PropertyDatatype::Picklist(_) => PropertyDatatype::Picklist(Some(format!(
-                    "{}{}",
-                    self.manifest.model.base_iri,
-                    to_pascal_case(property_class)
-                ))),
+                // PropertyDatatype::Picklist(_) => PropertyDatatype::Picklist(Some(format!(
+                //     "{}{}",
+                //     self.manifest.model.base_iri,
+                //     to_pascal_case(property_class)
+                // ))),
+                PropertyDatatype::Picklist(_) => {
+                    PropertyDatatype::Picklist(Some(expand_iri_with_base(
+                        &self.manifest.model.base_iri,
+                        &to_pascal_case(property_class),
+                    )))
+                }
                 PropertyDatatype::URI(_) | PropertyDatatype::ID => {
-                    PropertyDatatype::URI(Some(format!(
-                        "{}{}",
-                        self.manifest.model.base_iri,
-                        to_pascal_case(property_class)
+                    // PropertyDatatype::URI(Some(format!(
+                    //     "{}{}",
+                    //     self.manifest.model.base_iri,
+                    //     to_pascal_case(property_class)
+                    // )))
+                    PropertyDatatype::URI(Some(expand_iri_with_base(
+                        &self.manifest.model.base_iri,
+                        &to_pascal_case(property_class),
                     )))
                 }
                 _ => {
@@ -354,10 +392,14 @@ impl VocabularyProcessor {
                         return Err(ProcessorError::Processing(error_string));
                     } else {
                         tracing::warn!("{}", error_string);
-                        PropertyDatatype::URI(Some(format!(
-                            "{}{}",
-                            self.manifest.model.base_iri,
-                            to_pascal_case(property_class)
+                        // PropertyDatatype::URI(Some(format!(
+                        //     "{}{}",
+                        //     self.manifest.model.base_iri,
+                        //     to_pascal_case(property_class)
+                        // )))
+                        PropertyDatatype::URI(Some(expand_iri_with_base(
+                            &self.manifest.model.base_iri,
+                            &to_pascal_case(property_class),
                         )))
                     }
                 }
@@ -430,6 +472,75 @@ impl VocabularyProcessor {
 
             class_entry.push(camel_name.final_iri());
         }
+
+        // if matches!(xsd_type, PropertyDatatype::Picklist(_)) {
+        //     self.handle_add_rdfs_label_property(property_class)?;
+        // }
+        Ok(())
+    }
+
+    fn handle_add_rdfs_label_property(&mut self, class_id: &IdOpt) -> Result<(), ProcessorError> {
+        // class_id is the identifier of the class that the picklist property is pointing to
+        // we need to do two things:
+        // 1. Find that class in the vocabulary and add the rdfs:label property to its range
+        // 2. Add the rdfs:label property to the vocabulary properties map. If it exists, update it with the new class as its domain. If it doesn't exist, create it with the new class as its domain.
+        let rdfs_label = "rdfs:label".to_string();
+        let rdfs_label_id = IdOpt::String(rdfs_label.clone());
+        tracing::debug!(
+            "Existing classes in vocabulary: {:#?}",
+            self.class_properties.keys()
+        );
+        tracing::debug!("Adding rdfs:label property to class: {:#?}", class_id);
+        let entry = self
+            .class_properties
+            .entry(class_id.clone())
+            .and_modify(|entry| {
+                if !entry.contains(&rdfs_label) {
+                    entry.push(rdfs_label.clone());
+                }
+            });
+        if matches!(entry, Entry::Vacant(_)) {
+            return Err(ProcessorError::Processing(format!(
+                "Picklist Class {} not found in vocabulary while adding label",
+                class_id
+            )));
+        }
+
+        let rdfs_label_property_entry = self.vocabulary.properties.entry(rdfs_label_id.clone());
+        match rdfs_label_property_entry {
+            std::collections::hash_map::Entry::Vacant(_) => {
+                let property_term = VocabularyTerm {
+                    id: rdfs_label_id.clone(),
+                    type_: vec!["rdf:Property".to_string()],
+                    sub_class_of: None,
+                    label: Some("label".to_string()),
+                    comment: Some("The human-readable label of the resource".to_string()),
+                    domain: Some(vec![class_id.final_iri()]),
+                    // range: Some(vec![PropertyDatatype::URI(Some("xsd:string".to_string()))]),
+                    range: Some(vec![PropertyDatatype::String]),
+                    extra_items: HashMap::new(),
+                    one_of: None,
+                };
+                self.vocabulary
+                    .properties
+                    .insert(rdfs_label_id, property_term);
+            }
+            std::collections::hash_map::Entry::Occupied(mut entry) => {
+                entry.get_mut().update_with(VocabularyTerm {
+                    id: rdfs_label_id,
+                    type_: vec!["rdf:Property".to_string()],
+                    sub_class_of: None,
+                    label: Some("label".to_string()),
+                    comment: Some("The human-readable label of the resource".to_string()),
+                    domain: Some(vec![class_id.final_iri()]),
+                    // range: Some(vec![PropertyDatatype::URI(Some("xsd:string".to_string()))]),
+                    range: Some(vec![PropertyDatatype::String]),
+                    extra_items: HashMap::new(),
+                    one_of: None,
+                })?;
+            }
+        }
+
         Ok(())
     }
 

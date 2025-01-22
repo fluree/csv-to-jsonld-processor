@@ -26,6 +26,10 @@ impl InstanceSerializer {
             "xsd".to_string(),
             serde_json::Value::String("http://www.w3.org/2001/XMLSchema#".to_string()),
         );
+        context.insert(
+            "rdfs".to_string(),
+            serde_json::Value::String("http://www.w3.org/2000/01/rdf-schema#".to_string()),
+        );
 
         // Add model baseIRI for term resolution
         if !self.manifest.model.base_iri.is_empty() {
@@ -90,7 +94,7 @@ impl InstanceSerializer {
         let instances = JsonLdInstances {
             context: self.create_context(vocabulary),
             insert: instances.values().cloned().collect(),
-            ledger: "".to_string(),
+            ledger: self.manifest.ledger.clone(),
         };
 
         let instances_json = serde_json::to_string_pretty(&instances).map_err(|e| {

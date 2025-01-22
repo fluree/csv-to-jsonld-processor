@@ -34,6 +34,35 @@ pub fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
+/// Expands a relative IRI with a base IRI. Only expands if the relative IRI does not already start with a scheme
+pub fn expand_iri_with_base(base_iri: &str, possibly_relative_iri: &str) -> String {
+    // Attempt to parse the base IRI
+    let mut base_url = match url::Url::parse(base_iri) {
+        Ok(url) => url,
+        Err(_) => return possibly_relative_iri.to_string(),
+    };
+
+    if let Some(fragment) = base_url.fragment() {
+        if fragment.is_empty() {
+            // Handle special case for empty fragment (e.g., "http://example.com/base#")
+            return match url::Url::parse(possibly_relative_iri) {
+                Ok(url) => url.to_string(), // Return absolute URL as is
+                Err(_) => {
+                    base_url.set_fragment(Some(possibly_relative_iri));
+                    base_url.to_string() // Append relative IRI to the fragment
+                }
+            };
+        } else {
+            return possibly_relative_iri.to_string(); // Return input as is if fragment is non-empty
+        }
+    }
+
+    // Standard resolution for relative IRIs
+    base_url
+        .join(possibly_relative_iri)
+        .map_or_else(|_| possibly_relative_iri.to_string(), |url| url.to_string())
+}
+
 /// Normalize a string to be used as an IRI label
 pub fn normalize_label_for_iri(label: &str) -> String {
     label
@@ -153,4 +182,64 @@ macro_rules! contains_variant {
     ($collection:expr, $pattern:pat) => {
         $collection.iter().any(|item| matches!(item, $pattern))
     };
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::sync::Once;
+    use tracing::info;
+
+    static INIT: Once = Once::new();
+
+    /// Initialize logging exactly once for all tests
+    fn init_logging() {
+        INIT.call_once(|| {
+            tracing_subscriber::fmt()
+                .with_test_writer()
+                .with_max_level(tracing::Level::DEBUG)
+                .init();
+        });
+    }
+
+    #[test]
+    fn test_expand_iri_with_base() {
+        init_logging();
+
+        let base = "http://example.com/base/";
+        let relative = "path/to/resource";
+        let absolute = "http://example.com/absolute/resource";
+
+        info!("Testing expand with valid relative");
+        assert_eq!(
+            super::expand_iri_with_base(base, relative),
+            "http://example.com/base/path/to/resource"
+        );
+        info!("Testing expand with valid absolute");
+        assert_eq!(
+            super::expand_iri_with_base(base, absolute),
+            "http://example.com/absolute/resource"
+        );
+
+        let base = "s3://example.com/base/";
+
+        info!("Testing expand with S3 base");
+        assert_eq!(
+            super::expand_iri_with_base(base, relative),
+            "s3://example.com/base/path/to/resource"
+        );
+
+        let base = "http://example.com/base#";
+
+        info!("Testing expand with base containing fragment");
+        assert_eq!(
+            super::expand_iri_with_base(base, relative),
+            "http://example.com/base#path/to/resource"
+        );
+
+        let relative = "prefix:value";
+
+        info!("Testing expand with prefixed relative");
+        assert_eq!(super::expand_iri_with_base(base, relative), "prefix:value");
+    }
 }

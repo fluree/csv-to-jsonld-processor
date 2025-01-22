@@ -11,7 +11,6 @@ pub struct Processor {
     vocabulary_manager: VocabularyManager,
     instance_manager: InstanceManager,
     base_path: PathBuf,
-    is_strict: bool,
     output_path: PathBuf,
 }
 
@@ -32,7 +31,6 @@ impl Processor {
             base_path,
             output_path,
             manifest,
-            is_strict,
         }
     }
 

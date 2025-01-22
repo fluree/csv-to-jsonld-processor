@@ -122,7 +122,7 @@
             "instanceType": "BillOfMaterialsItem",
             "newRelationshipProperty": "hasItems",
             "columns": [
-              "Quantity",
+              "quantity",
               "has Material"
             ]
           }

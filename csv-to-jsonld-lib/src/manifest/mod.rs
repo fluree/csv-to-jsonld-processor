@@ -2,13 +2,12 @@ use crate::contains_variant;
 use crate::error::ProcessorError;
 use crate::types::{ColumnOverride, ExtraItem, PivotColumn};
 use json_comments::StripComments;
-use regex::Regex;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer};
-use serde_json::{json, Value};
-use std::fmt;
-use std::io::{BufRead, Read};
+use std::collections::HashSet;
+use std::io::Read;
 use std::path::PathBuf;
+use std::{fmt, mem};
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[allow(clippy::enum_variant_names)]
@@ -122,6 +121,8 @@ pub struct ImportStep {
     pub pivot_columns: Option<Vec<PivotColumn>>,
     #[serde(rename = "delimitValuesOn")]
     pub delimit_values_on: Option<String>,
+    #[serde(rename = "mapToLabel")]
+    pub map_to_label: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -136,29 +137,74 @@ pub struct ImportSection {
     pub sequence: Vec<ImportStep>,
 }
 
+impl ImportSection {
+    pub fn deduplicate_steps(&mut self) -> Result<(), Vec<ImportStep>> {
+        let mut seen_step_paths = HashSet::new();
+        let mut duplicate_steps = vec![];
+
+        let sequence = mem::take(&mut self.sequence);
+
+        let unique_steps: Vec<ImportStep> = sequence
+            .into_iter()
+            .filter_map(|step| {
+                if !seen_step_paths.insert(step.path.clone()) {
+                    duplicate_steps.push(step);
+                    None
+                } else {
+                    Some(step)
+                }
+            })
+            .collect();
+
+        self.sequence = unique_steps;
+        if !duplicate_steps.is_empty() {
+            return Err(duplicate_steps);
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
-    #[serde(rename = "@id")]
+    #[serde(rename = "@id", default)]
     pub id: String,
-    #[serde(rename = "@context")]
+    #[serde(rename = "@context", default)]
     pub context: serde_json::Value,
-    #[serde(rename = "@type")]
+    #[serde(rename = "@type", default)]
     pub type_: String,
+    #[serde(default)]
+    pub ledger: String,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub description: String,
+    // TODO: change this to Option<ImportSection>
     pub model: ImportSection,
     pub instances: ImportSection,
 }
 
-fn strip_comments(jsonc: &str) -> String {
-    let block_comment_re = Regex::new(r"/\*.*?\*/").unwrap();
-    let line_comment_re = Regex::new(r"//.*").unwrap();
-
-    let no_block_comments = block_comment_re.replace_all(jsonc, "");
-    line_comment_re
-        .replace_all(&no_block_comments, "")
-        .to_string()
+/// Check for duplicate steps in either model or instances section
+fn handle_step_deduplication(
+    section: &mut ImportSection,
+    section_type: &str,
+    is_strict: bool,
+) -> Result<(), ProcessorError> {
+    if let Err(duplicate_steps) = &mut section.deduplicate_steps() {
+        let message = format!(
+            "Duplicate {} steps found for paths: {:?}",
+            section_type,
+            duplicate_steps
+                .iter()
+                .map(|s| &s.path)
+                .collect::<Vec<&String>>()
+        );
+        if is_strict {
+            return Err(ProcessorError::InvalidManifest(message));
+        }
+        tracing::warn!(message);
+    };
+    Ok(())
 }
 
 impl Manifest {
@@ -175,7 +221,7 @@ impl Manifest {
         Ok(manifest)
     }
 
-    pub fn validate(&self) -> Result<(), ProcessorError> {
+    pub fn validate(&mut self, is_strict: bool) -> Result<(), ProcessorError> {
         tracing::info!("Validating manifest...");
 
         if self.type_ != "CSVImportManifest" {
@@ -185,28 +231,45 @@ impl Manifest {
             ));
         }
 
+        handle_step_deduplication(&mut self.model, "model", is_strict)?;
+        handle_step_deduplication(&mut self.instances, "instance", is_strict)?;
+
+        if let Err(duplicate_steps) = &mut self.instances.deduplicate_steps() {
+            let message = format!(
+                "Duplicate instance steps found for paths: {:?}",
+                duplicate_steps
+                    .iter()
+                    .map(|s| &s.path)
+                    .collect::<Vec<&String>>()
+            );
+            if is_strict {
+                return Err(ProcessorError::InvalidManifest(message));
+            }
+            tracing::warn!(message);
+        };
+
         for step in &self.model.sequence {
-            let model_step: Vec<&StepType> = step
+            let model_step_types: Vec<&StepType> = step
                 .types
                 .iter()
                 .filter(|t| matches!(t, StepType::ModelStep(_)))
                 .collect();
 
-            if model_step.is_empty() {
+            if model_step_types.is_empty() {
                 tracing::error!("No valid model step type found: {:?}", step.types);
                 return Err(ProcessorError::InvalidManifest(
                     "Model sequence steps must include ModelStep type: BasicVocabularyStep or SubClassVocabularyStep".into(),
                 ));
             }
 
-            if model_step.len() > 1 {
+            if model_step_types.len() > 1 {
                 tracing::error!("Multiple model step types found: {:?}", step.types);
                 return Err(ProcessorError::InvalidManifest(
                     "Model sequence steps must include only one ModelStep type: BasicVocabularyStep or SubClassVocabularyStep".into(),
                 ));
             }
 
-            if let StepType::ModelStep(ModelStep::SubClassVocabularyStep) = model_step[0] {
+            if let StepType::ModelStep(ModelStep::SubClassVocabularyStep) = model_step_types[0] {
                 if step.sub_class_of.is_none() {
                     tracing::error!("SubClassVocabularyStep requires subClassOf field");
                     return Err(ProcessorError::InvalidManifest(
@@ -275,8 +338,8 @@ mod tests {
 
     #[test]
     fn test_manifest_loading() {
-        let manifest = Manifest::from_file("../test-data/manifest.jsonld").unwrap();
+        let mut manifest = Manifest::from_file("../test-data/manifest.jsonld").unwrap();
         assert_eq!(manifest.type_, "CSVImportManifest");
-        assert!(manifest.validate().is_ok());
+        assert!(manifest.validate(false).is_ok());
     }
 }

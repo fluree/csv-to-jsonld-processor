@@ -40,14 +40,14 @@ mod tests {
         init_logging();
 
         info!("Testing manifest loading");
-        let manifest = Manifest::from_file("../test-data/manifest.jsonld").unwrap();
+        let mut manifest = Manifest::from_file("../test-data/manifest.jsonld").unwrap();
         assert_eq!(manifest.type_, "CSVImportManifest");
 
         info!("Validating manifest");
-        match manifest.validate() {
+        match manifest.validate(false) {
             Ok(_) => info!("Manifest validation successful"),
             Err(e) => error!("Manifest validation failed: {}", e),
         }
-        assert!(manifest.validate().is_ok());
+        assert!(manifest.validate(false).is_ok());
     }
 }

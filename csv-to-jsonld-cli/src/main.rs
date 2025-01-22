@@ -61,6 +61,9 @@ enum Commands {
             value_name = "PATH TO MANIFEST"
         )]
         manifest: PathBuf,
+        /// Enable strict mode for more rigorous validation
+        #[arg(short, long, default_value = "false")]
+        strict: bool,
     },
 }
 
@@ -89,7 +92,7 @@ async fn main() -> Result<()> {
             template_type,
             output,
         } => generate_manifest_command(template_type, output),
-        Commands::Validate { manifest } => validate_command(manifest),
+        Commands::Validate { manifest, strict } => validate_command(manifest, strict),
         Commands::Process {
             manifest,
             strict,
@@ -121,11 +124,13 @@ async fn process_command(
 
     // Load and validate manifest
     info!("Loading manifest from {}", manifest_path.display());
-    let manifest = Manifest::from_file(manifest_path)
+    let mut manifest = Manifest::from_file(manifest_path)
         .context("Failed to load manifest. See errors for additional details:")?;
 
     info!("Validating manifest configuration...");
-    manifest.validate().context("Failed to validate manifest")?;
+    manifest
+        .validate(strict)
+        .context("Failed to validate manifest")?;
 
     info!(
         "Manifest '{}' loaded and validated successfully",
@@ -163,31 +168,43 @@ fn generate_manifest_command(template_type: &str, output: &PathBuf) -> Result<()
         Template::Full => FULL_MANIFEST,
     };
 
+    // if output is a directory, append the default file name
+    let full_file_output_path = if output.is_dir() {
+        output.join("manifest.jsonc")
+    } else {
+        output.into()
+    };
+
     // Write the template to the output file
-    fs::write(output, template_content)
+    fs::write(&full_file_output_path, template_content)
         .context(format!("Failed to write manifest to: {}", output.display()))?;
 
     info!(
         "Successfully generated manifest template at: {}",
-        output.display()
+        full_file_output_path.display()
     );
     Ok(())
 }
 
-fn validate_command(manifest_path: &PathBuf) -> Result<()> {
+fn validate_command(manifest_path: &PathBuf, is_strict: &bool) -> Result<()> {
     info!("Validating manifest...");
 
     // Verify manifest file exists
     if !manifest_path.exists() {
-        anyhow::bail!("Manifest file not found: {}", manifest_path.display());
+        anyhow::bail!(
+            "Manifest file not found: {}. Try using --manifest <PATH TO MANIFEST>",
+            manifest_path.display()
+        );
     }
 
     // Attempt to deserialize the manifest to validate it
-    let manifest = Manifest::from_file(manifest_path)
+    let mut manifest = Manifest::from_file(manifest_path)
         .context("Failed to parse manifest. See errors for additional details:")?;
 
     // Run additional validation checks
-    manifest.validate().context("Failed to validate manifest")?;
+    manifest
+        .validate(*is_strict)
+        .context("Failed to validate manifest")?;
 
     info!("Manifest validation successful");
     info!("Name: {}", manifest.name);
