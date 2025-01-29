@@ -137,6 +137,17 @@ pub struct ImportSection {
     pub sequence: Vec<ImportStep>,
 }
 
+impl Default for ImportSection {
+    fn default() -> Self {
+        Self {
+            base_iri: String::new(),
+            namespace_iris: false,
+            path: String::new(),
+            sequence: vec![],
+        }
+    }
+}
+
 impl ImportSection {
     pub fn deduplicate_steps(&mut self) -> Result<(), Vec<ImportStep>> {
         let mut seen_step_paths = HashSet::new();
@@ -180,7 +191,9 @@ pub struct Manifest {
     #[serde(default)]
     pub description: String,
     // TODO: change this to Option<ImportSection>
+    #[serde(default)]
     pub model: ImportSection,
+    #[serde(default)]
     pub instances: ImportSection,
 }
 
@@ -230,6 +243,20 @@ impl Manifest {
                 "Manifest must have @type of CSVImportManifest".into(),
             ));
         }
+
+        // let model = if let Some(model) = &mut self.model {
+        //     model
+        // } else {
+        //     self.model = Some(ImportSection::default());
+        //     self.model.as_mut().unwrap()
+        // };
+
+        // let instances = if let Some(instances) = &mut self.instances {
+        //     instances
+        // } else {
+        //     self.instances = Some(ImportSection::default());
+        //     self.instances.as_mut().unwrap()
+        // };
 
         handle_step_deduplication(&mut self.model, "model", is_strict)?;
         handle_step_deduplication(&mut self.instances, "instance", is_strict)?;

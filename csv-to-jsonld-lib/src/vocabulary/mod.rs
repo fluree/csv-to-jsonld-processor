@@ -16,11 +16,34 @@ pub struct VocabularyManager {
 }
 
 impl VocabularyManager {
-    pub fn new(manifest: Arc<Manifest>, is_strict: bool) -> Self {
-        Self {
-            processor: processor::VocabularyProcessor::new(Arc::clone(&manifest), is_strict),
+    pub fn new(
+        manifest: Arc<Manifest>,
+        is_strict: bool,
+        vocab_meta_path: Option<PathBuf>,
+    ) -> Result<Self, ProcessorError> {
+        let is_manifest_vocab_empty = manifest.model.sequence.is_empty();
+        let processor = if is_manifest_vocab_empty {
+            if let Some(vocab_meta_path) = vocab_meta_path {
+                tracing::info!(
+                    "No vocabulary in manifest, loading from vocab meta file: {:?}",
+                    vocab_meta_path
+                );
+                processor::VocabularyProcessor::new_from_vocab_meta(
+                    Arc::clone(&manifest),
+                    &vocab_meta_path,
+                    is_strict,
+                )?
+            } else {
+                processor::VocabularyProcessor::new(Arc::clone(&manifest), is_strict)
+            }
+        } else {
+            processor::VocabularyProcessor::new(Arc::clone(&manifest), is_strict)
+        };
+
+        Ok(Self {
+            processor,
             serializer: serializer::VocabularySerializer::new(manifest),
-        }
+        })
     }
 
     pub async fn process_vocabulary(
@@ -48,6 +71,16 @@ impl VocabularyManager {
     ) -> Result<(), ProcessorError> {
         self.serializer
             .save_vocabulary(vocabulary, output_path)
+            .await
+    }
+
+    pub async fn save_vocabulary_meta(
+        &self,
+        vocabulary: &VocabularyMap,
+        output_path: &PathBuf,
+    ) -> Result<(), ProcessorError> {
+        self.serializer
+            .save_vocabulary_meta(vocabulary, output_path)
             .await
     }
 }

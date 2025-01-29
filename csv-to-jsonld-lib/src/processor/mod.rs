@@ -6,12 +6,86 @@ use crate::{contains_variant, ImportStep};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+pub struct ProcessorBuilder {
+    manifest: Manifest,
+    base_path: Option<PathBuf>,
+    output_path: Option<PathBuf>,
+    is_strict: bool,
+    export_vocab_meta: bool,
+    vocab_meta_path: Option<PathBuf>,
+}
+
+impl ProcessorBuilder {
+    pub fn from_manifest(manifest: Manifest) -> Self {
+        Self {
+            manifest,
+            base_path: None,
+            output_path: None,
+            is_strict: false,
+            export_vocab_meta: false,
+            vocab_meta_path: None,
+        }
+    }
+
+    pub fn with_base_path<P: Into<PathBuf>>(mut self, base_path: P) -> Self {
+        self.base_path = Some(base_path.into());
+        self
+    }
+
+    pub fn with_output_path<P: Into<PathBuf>>(mut self, output_path: P) -> Self {
+        self.output_path = Some(output_path.into());
+        self
+    }
+
+    pub fn with_strict(mut self, is_strict: bool) -> Self {
+        self.is_strict = is_strict;
+        self
+    }
+
+    pub fn with_export_vocab_meta(mut self, export_vocab_meta: bool) -> Self {
+        self.export_vocab_meta = export_vocab_meta;
+        self
+    }
+
+    pub fn with_vocab_meta_path<P: Into<PathBuf>>(mut self, vocab_meta_path: P) -> Self {
+        self.vocab_meta_path = Some(vocab_meta_path.into());
+        self
+    }
+
+    pub fn build(self) -> Result<Processor, ProcessorError> {
+        let base_path = match self.base_path {
+            Some(path) => path,
+            None => {
+                tracing::warn!("Base path not set, using current directory");
+                std::env::current_dir()?
+            }
+        };
+        let output_path = match self.output_path {
+            Some(path) => path,
+            None => {
+                tracing::warn!("Output path not set, using current directory");
+                std::env::current_dir()?
+            }
+        };
+
+        Processor::with_base_path(
+            self.manifest,
+            base_path,
+            self.is_strict,
+            output_path,
+            self.export_vocab_meta,
+            self.vocab_meta_path,
+        )
+    }
+}
+
 pub struct Processor {
     manifest: Arc<Manifest>,
     vocabulary_manager: VocabularyManager,
     instance_manager: InstanceManager,
     base_path: PathBuf,
     output_path: PathBuf,
+    export_vocab_meta: bool,
 }
 
 impl Processor {
@@ -20,18 +94,25 @@ impl Processor {
         base_path: P,
         is_strict: bool,
         output_path: P,
-    ) -> Self {
+        export_vocab_meta: bool,
+        vocab_meta_path: Option<PathBuf>,
+    ) -> Result<Self, ProcessorError> {
         let base_path = base_path.into();
         let output_path = output_path.into();
         let manifest = Arc::new(manifest);
         tracing::info!("Creating processor with base path: {:?}", base_path);
-        Self {
-            vocabulary_manager: VocabularyManager::new(Arc::clone(&manifest), is_strict),
+        Ok(Self {
+            vocabulary_manager: VocabularyManager::new(
+                Arc::clone(&manifest),
+                is_strict,
+                vocab_meta_path,
+            )?,
             instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict),
             base_path,
             output_path,
             manifest,
-        }
+            export_vocab_meta,
+        })
     }
 
     fn model_sequence(&self) -> Vec<crate::manifest::ImportStep> {
@@ -105,6 +186,13 @@ impl Processor {
             .await?;
 
         let vocabulary = self.instance_manager.take_vocabulary();
+
+        if self.export_vocab_meta {
+            self.vocabulary_manager
+                .save_vocabulary_meta(&vocabulary, &self.output_path)
+                .await?;
+        };
+
         self.vocabulary_manager
             .save_vocabulary(vocabulary, &self.output_path)
             .await?;

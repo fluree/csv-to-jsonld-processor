@@ -1,14 +1,16 @@
 use crate::utils::{are_conflicting, expand_iri_with_base, normalize_label_for_iri, to_camel_case};
 use crate::{error::ProcessorError, utils::to_pascal_case};
 use anyhow::Result;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use std::collections::hash_map::Entry;
+use std::fs::File;
 use std::hash::{Hash, Hasher};
+use std::path::PathBuf;
 use std::{collections::HashMap, fmt::Display};
 
 use super::PropertyDatatype;
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Deserialize)]
 pub enum IdOpt {
     String(String),
     // #[serde(serialize_with = "replacement_serialize")]
@@ -179,7 +181,7 @@ impl Serialize for IdOpt {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct VocabularyTerm {
     pub id: IdOpt,
     pub type_: Vec<String>,
@@ -383,7 +385,7 @@ pub struct JsonLdVocabulary {
     pub insert: FlureeDataModel,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct VocabularyMap {
     pub classes: HashMap<IdOpt, VocabularyTerm>,
     pub properties: HashMap<IdOpt, VocabularyTerm>,
@@ -399,6 +401,17 @@ impl VocabularyMap {
             properties: HashMap::new(),
             identifiers: HashMap::new(),
         }
+    }
+
+    pub fn from_file(path: &PathBuf) -> Result<Self, ProcessorError> {
+        tracing::debug!("Loading vocabulary meta file: {:#?}", path);
+        let bytes = std::fs::read(path).map_err(|e| {
+            ProcessorError::Processing(format!("Failed to read vocabulary meta file: {}", e))
+        })?;
+        let vocabulary_map = bincode::deserialize(&bytes).map_err(|e| {
+            ProcessorError::Processing(format!("Failed to deserialize vocabulary meta file: {}", e))
+        })?;
+        Ok(vocabulary_map)
     }
 
     /// Get the identifier property label for a given class

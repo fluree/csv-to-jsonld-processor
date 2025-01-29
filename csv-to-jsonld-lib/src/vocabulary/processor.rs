@@ -39,6 +39,21 @@ impl VocabularyProcessor {
         }
     }
 
+    pub fn new_from_vocab_meta(
+        manifest: Arc<Manifest>,
+        path: &PathBuf,
+        is_strict: bool,
+    ) -> Result<Self, ProcessorError> {
+        let vocabulary = VocabularyMap::from_file(path)?;
+        Ok(Self {
+            manifest,
+            vocabulary,
+            class_properties: HashMap::new(),
+            is_strict,
+            ignore: HashMap::new(),
+        })
+    }
+
     pub fn from_headers(
         headers: &csv::StringRecord,
         mut step: ImportStep,

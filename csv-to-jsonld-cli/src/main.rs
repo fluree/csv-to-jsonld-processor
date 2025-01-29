@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use csv_to_jsonld::{Manifest, Processor};
+use csv_to_jsonld::{Manifest, Processor, ProcessorBuilder};
 use manifest::{Template, BASIC_MANIFEST, FULL_MANIFEST};
 use std::{fs, path::PathBuf};
 use tracing::{info, Level};
@@ -12,10 +12,6 @@ mod manifest;
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Enable verbose output for detailed processing information
-    #[arg(short, long)]
-    verbose: bool,
-
     #[command(subcommand)]
     command: Commands,
 }
@@ -35,6 +31,14 @@ enum Commands {
         /// Output directory for generated JSON-LD files
         #[arg(short, long, value_name = "OUTPUT DIRECTORY PATH")]
         output: Option<PathBuf>,
+
+        /// Enable verbose output for detailed processing information
+        #[arg(short, long)]
+        verbose: bool,
+
+        /// Export vocabulary metadata to a separate JSON file
+        #[arg(long)]
+        export_vocab_meta: bool,
     },
     /// Generate a manifest template
     GenerateManifest {
@@ -50,6 +54,10 @@ enum Commands {
             value_name = "OUTPUT PATH"
         )]
         output: PathBuf,
+
+        /// Enable verbose output for detailed processing information
+        #[arg(short, long)]
+        verbose: bool,
     },
     /// Validate a manifest file against the configuration schema
     Validate {
@@ -64,6 +72,10 @@ enum Commands {
         /// Enable strict mode for more rigorous validation
         #[arg(short, long, default_value = "false")]
         strict: bool,
+
+        /// Enable verbose output for detailed processing information
+        #[arg(short, long)]
+        verbose: bool,
     },
 }
 
@@ -71,8 +83,14 @@ enum Commands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    let is_verbose = match &cli.command {
+        Commands::Process { verbose, .. }
+        | Commands::GenerateManifest { verbose, .. }
+        | Commands::Validate { verbose, .. } => *verbose,
+    };
+
     // Initialize logging with appropriate level
-    let level = if cli.verbose {
+    let level = if is_verbose {
         Level::DEBUG
     } else {
         Level::INFO
@@ -91,13 +109,18 @@ async fn main() -> Result<()> {
         Commands::GenerateManifest {
             template_type,
             output,
+            ..
         } => generate_manifest_command(template_type, output),
-        Commands::Validate { manifest, strict } => validate_command(manifest, strict),
+        Commands::Validate {
+            manifest, strict, ..
+        } => validate_command(manifest, strict),
         Commands::Process {
             manifest,
             strict,
             output,
-        } => process_command(manifest, *strict, output).await,
+            export_vocab_meta,
+            ..
+        } => process_command(manifest, *strict, output, *export_vocab_meta).await,
     }
 }
 
@@ -105,6 +128,7 @@ async fn process_command(
     manifest_path: &PathBuf,
     strict: bool,
     output: &Option<PathBuf>,
+    export_vocab_meta: bool,
 ) -> Result<()> {
     if strict {
         info!("Running in strict mode");
@@ -140,8 +164,26 @@ async fn process_command(
 
     // Create and run processor
     info!("Initializing processor...");
-    let mut processor =
-        Processor::with_base_path(manifest, base_path, strict, output_path.as_path());
+
+    let is_model_sequence_empty = manifest.model.sequence.is_empty();
+
+    let processor_builder = ProcessorBuilder::from_manifest(manifest)
+        .with_base_path(base_path)
+        .with_output_path(output_path)
+        .with_strict(strict)
+        .with_export_vocab_meta(export_vocab_meta);
+
+    let processor_builder = if is_model_sequence_empty {
+        tracing::info!(
+            "No model files specified in manifest, attempting to load vocabulary metadata."
+        );
+        let vocab_meta_path = base_path.join("data_model.bincode");
+        processor_builder.with_vocab_meta_path(vocab_meta_path)
+    } else {
+        processor_builder
+    };
+
+    let mut processor = processor_builder.build()?;
 
     info!("Beginning CSV processing...");
     processor
