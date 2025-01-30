@@ -1,7 +1,7 @@
 use super::types::InstanceProcessor;
 use crate::error::ProcessorError;
 use crate::types::{Header, IdOpt, PivotColumn, PropertyDatatype};
-use crate::utils::{expand_iri_with_base, to_pascal_case};
+use crate::utils::expand_iri_with_base;
 use std::collections::HashSet;
 
 impl InstanceProcessor {
@@ -171,7 +171,7 @@ impl InstanceProcessor {
     }
 
     pub fn validate_pivot_columns(
-        &self,
+        &mut self,
         pivot_columns: Vec<&PivotColumn>,
         base_csv_class: &str,
     ) -> Result<(), ProcessorError> {
@@ -184,43 +184,81 @@ impl InstanceProcessor {
 
             let pivot_column_ref_property = pivot_column.new_relationship_property.as_str();
 
+            // Check if pivot class exists in vocabulary
+            if !vocab.classes.values().any(|c| c.id == pivot_class_iri) {
+                let msg = format!(
+                    "Pivot column class '{}' not found in vocabulary",
+                    pivot_class
+                );
+                if self.is_strict {
+                    return Err(ProcessorError::Processing(msg));
+                } else {
+                    self.processing_state.add_warning(
+                        format!("{}, skipping pivot column validation", msg),
+                        Some("pivot_validation".to_string()),
+                    );
+                    continue;
+                }
+            }
+
+            // Validate base class reference property
             if let Some(base_class_vocab_def) = vocab
                 .classes
                 .values()
                 .find(|c| c.label == Some(base_csv_class.to_string()))
             {
                 if let Some(range_props) = &base_class_vocab_def.range {
-                    let base_class_ref_property = vocab
-                        .properties
-                        .values()
-                        .find(|prop| {
-                            range_props.iter().any(|p_datatype| match p_datatype {
-                                PropertyDatatype::URI(Some(iri)) => prop.id.final_iri() == *iri,
+                    let base_class_ref_property = vocab.properties.values().find(|prop| {
+                        range_props.iter().any(|p_datatype| match p_datatype {
+                            PropertyDatatype::URI(Some(iri)) => prop.id.final_iri() == *iri,
+                            _ => false,
+                        }) && prop.label == Some(pivot_column_ref_property.to_string())
+                            && prop.range.is_some()
+                            && prop.range.clone().unwrap().iter().any(|r| match r {
+                                PropertyDatatype::URI(Some(iri)) => pivot_class.clone() == *iri,
                                 _ => false,
-                            }) && prop.label == Some(pivot_column_ref_property.to_string())
-                                && prop.range.is_some()
-                                && prop.range.clone().unwrap().iter().any(|r| match r {
-                                    PropertyDatatype::URI(Some(iri)) => pivot_class.clone() == *iri,
-                                    _ => false,
-                                })
-                        })
-                        .ok_or(ProcessorError::Processing(format!(
+                            })
+                    });
+
+                    if base_class_ref_property.is_none() {
+                        let msg = format!(
                             "Base class {} has no property defined for referencing pivot class {}",
                             base_csv_class, pivot_class
-                        )))?;
-                    if base_class_ref_property.label != Some(pivot_column_ref_property.to_string())
-                    {
-                        return Err(ProcessorError::Processing(format!(
-                            "Base class {} has a property defined, {}, for referencing pivot class, {}. Manifest specifies a different property, {}",
-                            base_csv_class,
-                            base_class_ref_property.label.as_ref().unwrap(),
-                            pivot_class,
-                            pivot_column_ref_property
-                        )));
+                        );
+                        if self.is_strict {
+                            return Err(ProcessorError::Processing(msg));
+                        } else {
+                            self.processing_state.add_warning(
+                                format!("{}, skipping pivot column validation", msg),
+                                Some("pivot_validation".to_string()),
+                            );
+                            continue;
+                        }
+                    }
+
+                    if let Some(prop) = base_class_ref_property {
+                        if prop.label != Some(pivot_column_ref_property.to_string()) {
+                            let msg = format!(
+                                "Base class {} has a property defined, {}, for referencing pivot class, {}. Manifest specifies a different property, {}",
+                                base_csv_class,
+                                prop.label.as_ref().unwrap(),
+                                pivot_class,
+                                pivot_column_ref_property
+                            );
+                            if self.is_strict {
+                                return Err(ProcessorError::Processing(msg));
+                            } else {
+                                self.processing_state.add_warning(
+                                    format!("{}, using specified property", msg),
+                                    Some("pivot_validation".to_string()),
+                                );
+                            }
+                        }
                     }
                 }
             }
 
+            // Validate pivot class properties
             if let Some(klass) = vocab.classes.values().find(|c| c.id == pivot_class_iri) {
                 if let Some(range_props) = &klass.range {
                     let defined_class_props: Vec<&String> = vocab
@@ -244,23 +282,36 @@ impl InstanceProcessor {
                         .iter()
                         .filter(|column| !defined_class_props.contains(column))
                         .collect();
+
                     if !invalid_columns.is_empty() {
-                        return Err(ProcessorError::Processing(format!(
+                        let msg = format!(
                             "Pivot column class '{}' has columns ({:?}) that are not properties of the class: {:?}",
                             pivot_class, invalid_columns, defined_class_props
-                        )));
+                        );
+                        if self.is_strict {
+                            return Err(ProcessorError::Processing(msg));
+                        } else {
+                            self.processing_state.add_warning(
+                                format!("{}, these columns will be ignored", msg),
+                                Some("pivot_validation".to_string()),
+                            );
+                        }
                     }
                 } else {
-                    return Err(ProcessorError::Processing(format!(
+                    let msg = format!(
                         "Pivot column class '{}' has no properties defined to use for instance import",
                         pivot_class
-                    )));
+                    );
+                    if self.is_strict {
+                        return Err(ProcessorError::Processing(msg));
+                    } else {
+                        self.processing_state.add_warning(
+                            format!("{}, skipping pivot column validation", msg),
+                            Some("pivot_validation".to_string()),
+                        );
+                        continue;
+                    }
                 }
-            } else {
-                return Err(ProcessorError::Processing(format!(
-                    "Pivot column class '{}' not found in vocabulary",
-                    pivot_class
-                )));
             }
         }
         Ok(())

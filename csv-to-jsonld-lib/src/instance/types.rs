@@ -1,4 +1,4 @@
-use crate::error::{ProcessingState, ProcessorError};
+use crate::error::ProcessingState;
 use crate::types::{JsonLdInstance, VocabularyMap};
 use crate::Manifest;
 use std::collections::HashMap;

@@ -19,7 +19,7 @@ pub struct VocabularyProcessor {
     manifest: Arc<Manifest>,
     pub vocabulary: VocabularyMap,
     class_properties: HashMap<IdOpt, Vec<String>>,
-    is_strict: bool,
+    pub(crate) is_strict: bool,
     ignore: HashMap<String, Vec<String>>,
     base_iri: String,
     namespace_iris: bool,
@@ -131,29 +131,42 @@ impl VocabularyProcessor {
             &step.types,
             StepType::ModelStep(ModelStep::BasicVocabularyStep)
         ) {
-            MappingConfig {
-                type_: StepType::ModelStep(ModelStep::BasicVocabularyStep),
-                column_mapping: VocabularyColumnMapping::basic_vocabulary_step(),
-            }
+            MappingConfig::new(
+                StepType::ModelStep(ModelStep::BasicVocabularyStep),
+                VocabularyColumnMapping::basic_vocabulary_step(),
+                is_strict,
+            )
         } else if contains_variant!(
             &step.types,
             StepType::ModelStep(ModelStep::SubClassVocabularyStep)
         ) {
-            MappingConfig {
-                type_: StepType::ModelStep(ModelStep::SubClassVocabularyStep),
-                column_mapping: VocabularyColumnMapping::sub_class_vocabulary_step(),
-            }
+            MappingConfig::new(
+                StepType::ModelStep(ModelStep::SubClassVocabularyStep),
+                VocabularyColumnMapping::sub_class_vocabulary_step(),
+                is_strict,
+            )
         } else if contains_variant!(
             &step.types,
             StepType::ModelStep(ModelStep::PropertiesVocabularyStep)
         ) {
-            MappingConfig {
-                type_: StepType::ModelStep(ModelStep::PropertiesVocabularyStep),
-                column_mapping: VocabularyColumnMapping::property_vocabulary_step(),
-            }
+            MappingConfig::new(
+                StepType::ModelStep(ModelStep::PropertiesVocabularyStep),
+                VocabularyColumnMapping::property_vocabulary_step(),
+                is_strict,
+            )
         } else {
-            tracing::error!("Step Error: {:#?}", step);
-            return Err(ProcessorError::Processing("Invalid step type".into()));
+            let msg = format!("Invalid step type: {:#?}", step);
+            if is_strict {
+                tracing::error!("Step Error: {:#?}", step);
+                return Err(ProcessorError::Processing(msg));
+            } else {
+                tracing::warn!("{}, using basic vocabulary step", msg);
+                MappingConfig::new(
+                    StepType::ModelStep(ModelStep::BasicVocabularyStep),
+                    VocabularyColumnMapping::basic_vocabulary_step(),
+                    is_strict,
+                )
+            }
         };
 
         // Apply any overrides from the manifest
@@ -226,7 +239,7 @@ impl VocabularyProcessor {
 
         let sub_class_of = step.sub_class_of.clone();
 
-        let mapping = Self::from_headers(headers, step, self.is_strict)?;
+        let mut mapping = Self::from_headers(headers, step, self.is_strict)?;
 
         let ignorable_headers = self.ignore.get(step_path);
 
@@ -248,9 +261,21 @@ impl VocabularyProcessor {
 
         // Process each row
         for result in rdr.records() {
-            let record = result.map_err(|e| {
-                ProcessorError::Processing(format!("Failed to read CSV record: {}", e))
-            })?;
+            let record = match result {
+                Ok(record) => record,
+                Err(e) => {
+                    let msg = format!("Failed to read CSV record: {}", e);
+                    if self.is_strict {
+                        return Err(ProcessorError::Processing(msg));
+                    } else {
+                        self.processing_state.add_warning(
+                            format!("{}, skipping row", msg),
+                            Some("vocabulary_processing".to_string()),
+                        );
+                        continue;
+                    }
+                }
+            };
 
             let row_values = mapping.extract_values(&record, &headers)?;
 
@@ -529,10 +554,19 @@ impl VocabularyProcessor {
                 }
             });
         if matches!(entry, Entry::Vacant(_)) {
-            return Err(ProcessorError::Processing(format!(
+            let msg = format!(
                 "Picklist Class {} not found in vocabulary while adding label",
                 class_id
-            )));
+            );
+            if self.is_strict {
+                return Err(ProcessorError::Processing(msg));
+            } else {
+                self.processing_state.add_warning(
+                    format!("{}, skipping label addition", msg),
+                    Some("vocabulary_processing".to_string()),
+                );
+                return Ok(());
+            }
         }
 
         let rdfs_label_property_entry = self.vocabulary.properties.entry(rdfs_label_id.clone());

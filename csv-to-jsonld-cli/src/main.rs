@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use csv_to_jsonld::{Manifest, ProcessingOutcome, Processor, ProcessorBuilder};
+use csv_to_jsonld::{Manifest, ProcessingOutcome, ProcessorBuilder};
 use manifest::{Template, BASIC_MANIFEST, FULL_MANIFEST};
 use std::{fs, path::PathBuf};
 use tracing::{error, info, warn, Level};

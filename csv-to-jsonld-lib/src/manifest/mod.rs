@@ -125,7 +125,7 @@ pub struct ImportStep {
     pub map_to_label: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ImportSection {
     #[serde(default, rename = "baseIRI")]
@@ -135,17 +135,6 @@ pub struct ImportSection {
     #[serde(default)]
     pub path: String,
     pub sequence: Vec<ImportStep>,
-}
-
-impl Default for ImportSection {
-    fn default() -> Self {
-        Self {
-            base_iri: String::new(),
-            namespace_iris: false,
-            path: String::new(),
-            sequence: vec![],
-        }
-    }
 }
 
 impl ImportSection {

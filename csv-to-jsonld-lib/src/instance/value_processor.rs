@@ -117,12 +117,21 @@ impl InstanceProcessor {
                         cleaned_value == "true" || cleaned_value == "1" || cleaned_value == "yes",
                     ))
                 } else {
-                    Err(ProcessorError::Processing(format!(
+                    let msg = format!(
                         "[Column: {}, Row: {}], Invalid boolean value: {}",
                         header_name,
                         row_num + 1,
                         value
-                    )))
+                    );
+                    if self.is_strict {
+                        Err(ProcessorError::Processing(msg))
+                    } else {
+                        self.processing_state.add_warning(
+                            format!("{}, using raw value", msg),
+                            Some("boolean_validation".to_string()),
+                        );
+                        Ok(JsonValue::String(value.to_string()))
+                    }
                 }
             }
             PropertyDatatype::URI(target_class) | PropertyDatatype::Picklist(target_class) => {

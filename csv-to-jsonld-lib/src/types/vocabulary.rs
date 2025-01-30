@@ -3,9 +3,7 @@ use crate::{error::ProcessorError, utils::to_pascal_case};
 use anyhow::Result;
 use serde::{Deserialize, Serialize, Serializer};
 use std::collections::hash_map::Entry;
-use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::path::PathBuf;
 use std::{collections::HashMap, fmt::Display};
 
 use super::csv::StrictPropertyDatatype;

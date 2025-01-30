@@ -264,9 +264,23 @@ impl Processor {
 
         if contains_variant!(step.types, StepType::ModelStep(_)) {
             tracing::debug!("Processing as base vocabulary data");
-            self.vocabulary_manager
+            if let Err(e) = self
+                .vocabulary_manager
                 .process_vocabulary(step, model_path.to_str().unwrap())
-                .await?;
+                .await
+            {
+                if self.vocabulary_manager.processor.is_strict {
+                    return Err(e);
+                } else {
+                    self.processing_state.add_warning(
+                        format!(
+                            "Error in model step {}: {}, continuing with next step",
+                            step_name, e
+                        ),
+                        Some("model_processing".to_string()),
+                    );
+                }
+            }
         }
 
         tracing::debug!("At end of step: {:?}", step_name);
@@ -286,36 +300,58 @@ impl Processor {
         let instance_path = self.resolve_path(&self.manifest.instances.path);
 
         // Find the instance step type
-        let instance_step = step
-            .types
-            .iter()
-            .find_map(|t| match t {
-                StepType::InstanceStep(step_type) => Some(step_type),
-                _ => None,
-            })
-            .ok_or_else(|| {
-                ProcessorError::Processing("No valid instance step type found".into())
-            })?;
+        let instance_step = match step.types.iter().find_map(|t| match t {
+            StepType::InstanceStep(step_type) => Some(step_type),
+            _ => None,
+        }) {
+            Some(step_type) => step_type,
+            None => {
+                let msg = "No valid instance step type found".to_string();
+                if self.instance_manager.processor.is_strict {
+                    return Err(ProcessorError::Processing(msg));
+                } else {
+                    self.processing_state.add_warning(
+                        format!("{}, skipping step", msg),
+                        Some("instance_processing".to_string()),
+                    );
+                    return Ok(());
+                }
+            }
+        };
 
         // Process based on step type
-        match instance_step {
+        let result = match instance_step {
             InstanceStep::BasicInstanceStep | InstanceStep::PicklistStep => {
                 tracing::debug!("Processing as basic instance data");
                 self.instance_manager
                     .process_simple_instance(step, instance_path.to_str().unwrap())
-                    .await?;
+                    .await
             }
             InstanceStep::SubClassInstanceStep => {
                 tracing::debug!("Processing as subclass instance data");
                 self.instance_manager
                     .process_subclass_instance(step, instance_path.to_str().unwrap())
-                    .await?;
+                    .await
             }
             InstanceStep::PropertiesInstanceStep => {
                 tracing::debug!("Processing as properties instance data");
                 self.instance_manager
                     .process_properties_instance(step, instance_path.to_str().unwrap())
-                    .await?;
+                    .await
+            }
+        };
+
+        if let Err(e) = result {
+            if self.instance_manager.processor.is_strict {
+                return Err(e);
+            } else {
+                self.processing_state.add_warning(
+                    format!(
+                        "Error in instance step {}: {}, continuing with next step",
+                        step.path, e
+                    ),
+                    Some("instance_processing".to_string()),
+                );
             }
         }
 

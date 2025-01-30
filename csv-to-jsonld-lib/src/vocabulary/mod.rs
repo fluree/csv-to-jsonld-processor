@@ -10,7 +10,7 @@ use processor::VocabularyProcessorMetadata;
 
 use crate::error::ProcessorError;
 use crate::manifest::ImportStep;
-use crate::types::{StrictVocabularyMap, VocabularyMap};
+use crate::types::VocabularyMap;
 use crate::Manifest;
 
 pub struct VocabularyManager {

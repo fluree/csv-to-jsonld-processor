@@ -2,7 +2,7 @@ use csv::StringRecord;
 use serde::Serialize;
 use std::collections::HashMap;
 
-use crate::error::ProcessorError;
+use crate::error::{ProcessingState, ProcessorError};
 use crate::manifest::{ModelStep, StepType};
 use crate::types::{ColumnOverride, ExtraItem, IdOpt};
 use crate::utils::validate_column_identifier;
@@ -24,23 +24,34 @@ pub struct RowValues<'a> {
 pub struct MappingConfig {
     pub type_: StepType,
     pub column_mapping: VocabularyColumnMapping,
+    pub is_strict: bool,
+    pub processing_state: ProcessingState,
 }
 
 impl MappingConfig {
+    pub fn new(type_: StepType, column_mapping: VocabularyColumnMapping, is_strict: bool) -> Self {
+        Self {
+            type_,
+            column_mapping,
+            is_strict,
+            processing_state: ProcessingState::new(),
+        }
+    }
+
     pub fn extract_values<'a>(
-        &self,
+        &mut self,
         record: &'a StringRecord,
         headers: &StringRecord,
     ) -> Result<RowValues<'a>, ProcessorError> {
         match self.type_ {
             StepType::ModelStep(ModelStep::BasicVocabularyStep) => {
-                Ok(self.extract_basic_vocabulary_values(record, headers)?)
+                self.extract_basic_vocabulary_values(record, headers)
             }
             StepType::ModelStep(ModelStep::SubClassVocabularyStep) => {
-                Ok(self.extract_sub_class_vocabulary_values(record, headers)?)
+                self.extract_sub_class_vocabulary_values(record, headers)
             }
             StepType::ModelStep(ModelStep::PropertiesVocabularyStep) => {
-                Ok(self.extract_properties_vocabulary_values(record, headers)?)
+                self.extract_properties_vocabulary_values(record, headers)
             }
             _ => Err(ProcessorError::InvalidManifest(
                 "Invalid StepType for MappingConfig".to_string(),
@@ -49,14 +60,14 @@ impl MappingConfig {
     }
 
     fn extract_basic_vocabulary_values<'a>(
-        &self,
+        &mut self,
         record: &'a StringRecord,
         headers: &StringRecord,
     ) -> Result<RowValues<'a>, ProcessorError> {
         let mapping = &self.column_mapping;
         let class_id = mapping
             .get_id_value(record, headers, &mapping.class_column)
-            .ok_or_else(|| ProcessorError::Processing("Missing Class ID column".into()))?;
+            .ok_or_else(|| ProcessorError::Processing("Missing Class ID value".into()))?;
         let class_name = mapping
             .get_value(
                 record,
@@ -71,9 +82,48 @@ impl MappingConfig {
                 mapping.class_description_column.as_deref().unwrap_or(""),
             )
             .unwrap_or("");
-        let property = mapping
-            .get_id_value(record, headers, mapping.property_column.as_ref().unwrap())
-            .ok_or_else(|| ProcessorError::Processing("Missing Property column".into()))?;
+        let extra_items = mapping
+            .extra_items
+            .values()
+            .map(|extra_item| {
+                let value = mapping
+                    .get_value(record, headers, &extra_item.column)
+                    .unwrap_or("")
+                    .to_string();
+                let extra_item = extra_item.set_value(value);
+                (extra_item.map_to.clone(), extra_item)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let property = match mapping.property_column.as_ref() {
+            Some(column) => mapping
+                .get_id_value(record, headers, column)
+                .ok_or_else(|| ProcessorError::Processing("Missing Property value".into()))
+                .or_else(|err| {
+                    if self.is_strict {
+                        Err(err)
+                    } else {
+                        self.processing_state.add_warning(
+                            "Missing Property value, using empty string",
+                            Some("property_validation".to_string()),
+                        );
+                        Ok(IdOpt::String("".to_string()))
+                    }
+                })?,
+            None => {
+                return Ok(RowValues {
+                    class_id,
+                    class_name: Some(class_name),
+                    class_description: Some(class_desc),
+                    property_id: None,
+                    property_name: None,
+                    property_description: None,
+                    property_type: None,
+                    property_class: None,
+                    extra_items,
+                })
+            }
+        };
         let property_name = mapping
             .get_value(
                 record,
@@ -108,18 +158,6 @@ impl MappingConfig {
                     .unwrap_or(&"".to_string()),
             )
             .unwrap_or("");
-        let extra_items = mapping
-            .extra_items
-            .values()
-            .map(|extra_item| {
-                let value = mapping
-                    .get_value(record, headers, &extra_item.column)
-                    .unwrap_or("")
-                    .to_string();
-                let extra_item = extra_item.set_value(value);
-                (extra_item.map_to.clone(), extra_item)
-            })
-            .collect::<HashMap<_, _>>();
         let result = RowValues {
             class_id,
             class_name: Some(class_name),
@@ -135,7 +173,7 @@ impl MappingConfig {
     }
 
     fn extract_sub_class_vocabulary_values<'a>(
-        &self,
+        &mut self,
         record: &'a StringRecord,
         headers: &StringRecord,
     ) -> Result<RowValues<'a>, ProcessorError> {
@@ -149,7 +187,7 @@ impl MappingConfig {
                 headers,
                 mapping.class_label_column.as_deref().unwrap_or(""),
             )
-            .ok_or_else(|| ProcessorError::Processing("Missing Class column".into()))?;
+            .unwrap_or("");
         let class_desc = mapping
             .get_value(
                 record,
@@ -185,17 +223,31 @@ impl MappingConfig {
     }
 
     fn extract_properties_vocabulary_values<'a>(
-        &self,
+        &mut self,
         record: &'a StringRecord,
         headers: &StringRecord,
     ) -> Result<RowValues<'a>, ProcessorError> {
         let mapping = &self.column_mapping;
         let class_id = mapping
             .get_id_value(record, headers, &mapping.class_column)
-            .ok_or_else(|| ProcessorError::Processing("Missing Class ID column".into()))?;
-        let property = mapping
-            .get_id_value(record, headers, mapping.property_column.as_ref().unwrap())
-            .ok_or_else(|| ProcessorError::Processing("Missing Property column".into()))?;
+            .ok_or_else(|| ProcessorError::Processing("Missing Class ID value".into()))?;
+        let property = match mapping.property_column.as_ref() {
+            Some(column) => mapping
+                .get_id_value(record, headers, column)
+                .ok_or_else(|| ProcessorError::Processing("Missing Property value".into()))
+                .or_else(|e| {
+                    if !self.is_strict {
+                        self.processing_state.add_warning(
+                            format!("{}, using empty string", e),
+                            Some("property_validation".to_string()),
+                        );
+                        Ok(IdOpt::String("".to_string()))
+                    } else {
+                        Err(e)
+                    }
+                })?,
+            None => IdOpt::String("".to_string()),
+        };
         let property_name = mapping
             .get_value(
                 record,
@@ -542,10 +594,14 @@ impl VocabularyColumnMapping {
             match column {
                 IdOpt::String(s) => {
                     if !headers.iter().any(|h| h == s) {
-                        return Err(ProcessorError::Processing(format!(
-                            "Required column '{}' not found in CSV headers",
-                            s
-                        )));
+                        if is_strict {
+                            return Err(ProcessorError::Processing(format!(
+                                "Required column '{}' not found in CSV headers",
+                                s
+                            )));
+                        } else {
+                            tracing::warn!("Required column '{}' not found in CSV headers, some data may be missing", s);
+                        }
                     }
                 }
                 IdOpt::ReplacementMap {
