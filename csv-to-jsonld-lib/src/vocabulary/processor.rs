@@ -3,10 +3,15 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 use super::mapping::{MappingConfig, RowValues, VocabularyColumnMapping};
 use crate::error::ProcessorError;
 use crate::manifest::{ImportStep, ModelStep, StepType};
-use crate::types::{IdOpt, OnEntity, PropertyDatatype, VocabularyMap, VocabularyTerm};
+use crate::types::{
+    IdOpt, OnEntity, PropertyDatatype, StrictIdOpt, StrictVocabularyMap, VocabularyMap,
+    VocabularyTerm,
+};
 use crate::utils::{expand_iri_with_base, map_xsd_type, to_pascal_case};
 use crate::{contains_variant, Manifest};
 
@@ -16,10 +21,56 @@ pub struct VocabularyProcessor {
     class_properties: HashMap<IdOpt, Vec<String>>,
     is_strict: bool,
     ignore: HashMap<String, Vec<String>>,
+    base_iri: String,
+    namespace_iris: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VocabularyProcessorMetadata {
+    pub vocabulary: StrictVocabularyMap,
+    pub class_properties: Vec<(StrictIdOpt, Vec<String>)>,
+    ignore: HashMap<String, Vec<String>>,
+    base_iri: String,
+    namespace_iris: bool,
+}
+
+impl From<&VocabularyProcessor> for VocabularyProcessorMetadata {
+    fn from(value: &VocabularyProcessor) -> Self {
+        let class_properties = value
+            .class_properties
+            .clone()
+            .into_iter()
+            .map(|(k, v)| (k.into(), v))
+            .collect();
+        Self {
+            vocabulary: StrictVocabularyMap::from(value.vocabulary.clone()),
+            class_properties,
+            ignore: value.ignore.clone(),
+            base_iri: value.manifest.model.base_iri.clone(),
+            namespace_iris: value.manifest.model.namespace_iris,
+        }
+    }
+}
+
+impl VocabularyProcessorMetadata {
+    pub fn from_file(path: &PathBuf) -> Result<Self, ProcessorError> {
+        tracing::debug!("Loading vocabulary meta file: {:#?}", path);
+        let bytes = std::fs::read(path).map_err(|e| {
+            ProcessorError::Processing(format!("Failed to read vocabulary meta file: {}", e))
+        })?;
+        serde_json::from_slice(&bytes).map_err(|e| {
+            ProcessorError::Processing(format!(
+                "Failed to deserialize vocabulary meta file: {:#?}",
+                e
+            ))
+        })
+    }
 }
 
 impl VocabularyProcessor {
     pub fn new(manifest: Arc<Manifest>, is_strict: bool) -> Self {
+        let base_iri = manifest.model.base_iri.clone();
+        let namespace_iris = manifest.model.namespace_iris;
         let ignore = manifest
             .model
             .sequence
@@ -36,7 +87,13 @@ impl VocabularyProcessor {
             class_properties: HashMap::new(),
             is_strict,
             ignore,
+            base_iri,
+            namespace_iris,
         }
+    }
+
+    pub fn get_base_iri(&self) -> &String {
+        &self.base_iri
     }
 
     pub fn new_from_vocab_meta(
@@ -44,13 +101,20 @@ impl VocabularyProcessor {
         path: &PathBuf,
         is_strict: bool,
     ) -> Result<Self, ProcessorError> {
-        let vocabulary = VocabularyMap::from_file(path)?;
+        let vocabulary_processor_metadata = VocabularyProcessorMetadata::from_file(path)?;
+        let class_properties = vocabulary_processor_metadata
+            .class_properties
+            .into_iter()
+            .map(|(k, v)| (k.into(), v))
+            .collect();
         Ok(Self {
             manifest,
-            vocabulary,
-            class_properties: HashMap::new(),
+            vocabulary: vocabulary_processor_metadata.vocabulary.into(),
+            class_properties,
             is_strict,
-            ignore: HashMap::new(),
+            ignore: vocabulary_processor_metadata.ignore,
+            base_iri: vocabulary_processor_metadata.base_iri,
+            namespace_iris: vocabulary_processor_metadata.namespace_iris,
         })
     }
 
@@ -205,8 +269,7 @@ impl VocabularyProcessor {
             .filter_map(|p| {
                 if let Some(PropertyDatatype::Picklist(class)) = p.range.as_ref()?.first() {
                     class.as_ref().map(|string| {
-                        IdOpt::String(string.clone())
-                            .without_base_iri(&self.manifest.model.base_iri)
+                        IdOpt::String(string.clone()).without_base_iri(&self.base_iri)
                     })
                     // class.as_ref().map(|string| IdOpt::String(string.clone()))
                 } else {
@@ -238,14 +301,7 @@ impl VocabularyProcessor {
                     properties
                         .iter()
                         .map(|p| {
-                            // PropertyDatatype::URI(Some(format!(
-                            //     "{}{}",
-                            //     self.manifest.model.base_iri, p
-                            // )))
-                            PropertyDatatype::URI(Some(expand_iri_with_base(
-                                &self.manifest.model.base_iri,
-                                p,
-                            )))
+                            PropertyDatatype::URI(Some(expand_iri_with_base(&self.base_iri, p)))
                         })
                         .collect(),
                 );
@@ -294,7 +350,7 @@ impl VocabularyProcessor {
                     id: class_id
                         .normalize()
                         .to_pascal_case()
-                        .with_base_iri(&self.manifest.model.base_iri),
+                        .with_base_iri(&self.base_iri),
                     type_: vec!["rdfs:Class".to_string()],
                     sub_class_of,
                     label: class_name.map(|n| n.to_string()),
@@ -312,7 +368,7 @@ impl VocabularyProcessor {
                     id: class_id
                         .normalize()
                         .to_pascal_case()
-                        .with_base_iri(&self.manifest.model.base_iri),
+                        .with_base_iri(&self.base_iri),
                     type_: vec!["rdfs:Class".to_string()],
                     sub_class_of,
                     label: class_name.map(|n| n.to_string()),
@@ -325,26 +381,6 @@ impl VocabularyProcessor {
             }
         }
 
-        // if let std::collections::hash_map::Entry::Vacant(_) =
-        //     self.vocabulary.classes.entry(class_id.clone())
-        // {
-        //     let class_term = VocabularyTerm {
-        //         id: class_id
-        //             .to_pascal_case()
-        //             .with_base_iri(&self.manifest.model.base_iri),
-        //         type_: vec!["rdfs:Class".to_string()],
-        //         sub_class_of,
-        //         label,
-        //         comment: Some(class_description.to_string()),
-        //         domain: None,
-        //         range: Some(vec![]),
-        //         extra_items: extra_items_result,
-        //     };
-
-        //     tracing::debug!("Adding class term: {:#?}", class_term);
-
-        //     self.vocabulary.classes.insert(class_id.clone(), class_term);
-        // }
         Ok(())
     }
 
@@ -370,34 +406,13 @@ impl VocabularyProcessor {
         let xsd_type = map_xsd_type(property_type)?;
         let camel_name = property.to_camel_case();
         let range = if !property_class.is_empty() {
-            // let value = format!(
-            //     "{}{}",
-            //     self.manifest.model.base_iri,
-            //     to_pascal_case(property_class)
-            // );
             let value = match xsd_type {
-                // PropertyDatatype::Picklist(_) => PropertyDatatype::Picklist(Some(format!(
-                //     "{}{}",
-                //     self.manifest.model.base_iri,
-                //     to_pascal_case(property_class)
-                // ))),
-                PropertyDatatype::Picklist(_) => {
-                    PropertyDatatype::Picklist(Some(expand_iri_with_base(
-                        &self.manifest.model.base_iri,
-                        &to_pascal_case(property_class),
-                    )))
-                }
-                PropertyDatatype::URI(_) | PropertyDatatype::ID => {
-                    // PropertyDatatype::URI(Some(format!(
-                    //     "{}{}",
-                    //     self.manifest.model.base_iri,
-                    //     to_pascal_case(property_class)
-                    // )))
-                    PropertyDatatype::URI(Some(expand_iri_with_base(
-                        &self.manifest.model.base_iri,
-                        &to_pascal_case(property_class),
-                    )))
-                }
+                PropertyDatatype::Picklist(_) => PropertyDatatype::Picklist(Some(
+                    expand_iri_with_base(&self.base_iri, &to_pascal_case(property_class)),
+                )),
+                PropertyDatatype::URI(_) | PropertyDatatype::ID => PropertyDatatype::URI(Some(
+                    expand_iri_with_base(&self.base_iri, &to_pascal_case(property_class)),
+                )),
                 _ => {
                     let error_string = format!(
                         "[Property: {}] A property with type {} cannot have a target class ({})",
@@ -407,13 +422,8 @@ impl VocabularyProcessor {
                         return Err(ProcessorError::Processing(error_string));
                     } else {
                         tracing::warn!("{}", error_string);
-                        // PropertyDatatype::URI(Some(format!(
-                        //     "{}{}",
-                        //     self.manifest.model.base_iri,
-                        //     to_pascal_case(property_class)
-                        // )))
                         PropertyDatatype::URI(Some(expand_iri_with_base(
-                            &self.manifest.model.base_iri,
+                            &self.base_iri,
                             &to_pascal_case(property_class),
                         )))
                     }
@@ -449,7 +459,7 @@ impl VocabularyProcessor {
 
         // Create property term
         let property_term = VocabularyTerm {
-            id: camel_name.with_base_iri(&self.manifest.model.base_iri),
+            id: camel_name.with_base_iri(&self.base_iri),
             type_: vec!["rdf:Property".to_string()],
             sub_class_of: None,
             label: Some(property_name.to_string()),
@@ -457,7 +467,7 @@ impl VocabularyProcessor {
             domain: Some(vec![new_or_existing_class_id
                 .normalize()
                 .to_pascal_case()
-                .with_base_iri(&self.manifest.model.base_iri)
+                .with_base_iri(&self.base_iri)
                 .final_iri()]),
             range,
             extra_items: extra_items_result,

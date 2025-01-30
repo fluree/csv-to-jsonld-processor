@@ -101,13 +101,12 @@ impl Processor {
         let output_path = output_path.into();
         let manifest = Arc::new(manifest);
         tracing::info!("Creating processor with base path: {:?}", base_path);
+        let vocabulary_manager =
+            VocabularyManager::new(Arc::clone(&manifest), is_strict, vocab_meta_path.clone())?;
+        let base_iri = vocabulary_manager.processor.get_base_iri().to_string();
         Ok(Self {
-            vocabulary_manager: VocabularyManager::new(
-                Arc::clone(&manifest),
-                is_strict,
-                vocab_meta_path,
-            )?,
-            instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict),
+            vocabulary_manager,
+            instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict, base_iri),
             base_path,
             output_path,
             manifest,

@@ -177,7 +177,7 @@ async fn process_command(
         tracing::info!(
             "No model files specified in manifest, attempting to load vocabulary metadata."
         );
-        let vocab_meta_path = base_path.join("data_model.bincode");
+        let vocab_meta_path = base_path.join("data_model.tmp");
         processor_builder.with_vocab_meta_path(vocab_meta_path)
     } else {
         processor_builder

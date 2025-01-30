@@ -23,6 +23,53 @@ pub enum PropertyDatatype {
     Boolean,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[allow(clippy::upper_case_acronyms)]
+pub enum StrictPropertyDatatype {
+    ID,
+    URI(Option<String>),
+    Picklist(Option<String>),
+    String,
+    Decimal,
+    Integer,
+    Date,
+    Boolean,
+}
+
+impl From<PropertyDatatype> for StrictPropertyDatatype {
+    fn from(datatype: PropertyDatatype) -> Self {
+        match datatype {
+            PropertyDatatype::ID => StrictPropertyDatatype::ID,
+            PropertyDatatype::URI(string_option) => StrictPropertyDatatype::URI(string_option),
+            PropertyDatatype::Picklist(string_option) => {
+                StrictPropertyDatatype::Picklist(string_option)
+            }
+            PropertyDatatype::String => StrictPropertyDatatype::String,
+            PropertyDatatype::Decimal => StrictPropertyDatatype::Decimal,
+            PropertyDatatype::Integer => StrictPropertyDatatype::Integer,
+            PropertyDatatype::Date => StrictPropertyDatatype::Date,
+            PropertyDatatype::Boolean => StrictPropertyDatatype::Boolean,
+        }
+    }
+}
+
+impl From<StrictPropertyDatatype> for PropertyDatatype {
+    fn from(datatype: StrictPropertyDatatype) -> Self {
+        match datatype {
+            StrictPropertyDatatype::ID => PropertyDatatype::ID,
+            StrictPropertyDatatype::URI(string_option) => PropertyDatatype::URI(string_option),
+            StrictPropertyDatatype::Picklist(string_option) => {
+                PropertyDatatype::Picklist(string_option)
+            }
+            StrictPropertyDatatype::String => PropertyDatatype::String,
+            StrictPropertyDatatype::Decimal => PropertyDatatype::Decimal,
+            StrictPropertyDatatype::Integer => PropertyDatatype::Integer,
+            StrictPropertyDatatype::Date => PropertyDatatype::Date,
+            StrictPropertyDatatype::Boolean => PropertyDatatype::Boolean,
+        }
+    }
+}
+
 impl FromStr for PropertyDatatype {
     type Err = ProcessorError;
 

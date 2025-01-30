@@ -16,10 +16,13 @@ pub struct InstanceProcessor {
     is_strict: bool,
     ignore: HashMap<String, Vec<String>>,
     is_namespace_iris: bool,
+    model_base_iri: String,
+    instances_base_iri: String,
 }
 
 impl InstanceProcessor {
-    pub fn new(manifest: Arc<Manifest>, is_strict: bool) -> Self {
+    pub fn new(manifest: Arc<Manifest>, is_strict: bool, model_base_iri: String) -> Self {
+        let instances_base_iri = manifest.instances.base_iri.clone();
         let ignore = manifest
             .instances
             .sequence
@@ -38,6 +41,8 @@ impl InstanceProcessor {
             is_strict,
             ignore,
             is_namespace_iris,
+            model_base_iri,
+            instances_base_iri,
         }
     }
 
@@ -136,15 +141,14 @@ impl InstanceProcessor {
     ) -> Result<HashSet<Header>, ProcessorError> {
         let mut valid_labels: HashSet<Option<Header>> = HashSet::new();
         let vocab = self.vocabulary.as_mut().unwrap();
-        // let class_iri = format!("{}{}", self.manifest.model.base_iri, class_type);
-        let class_iri = expand_iri_with_base(&self.manifest.model.base_iri, class_type);
+        let class_iri = expand_iri_with_base(&self.model_base_iri, class_type);
 
         if let Some(pivot_columns) = pivot_columns {
             for pivot_column in pivot_columns {
                 // In this case, we care about the instance type defined on the pivot column rather than the class for the wholes spreadsheet step
                 let pivot_class = pivot_column.instance_type.to_string();
-                let pivot_class_iri = IdOpt::String(pivot_class.clone())
-                    .with_base_iri(self.manifest.model.base_iri.as_str());
+                let pivot_class_iri =
+                    IdOpt::String(pivot_class.clone()).with_base_iri(self.model_base_iri.as_str());
                 if let Some(class) = vocab.classes.values().find(|c| c.id == pivot_class_iri) {
                     tracing::debug!("[get_valid_property_labels] Matched pivot class: {:?} with class iri: {:?}", pivot_class_iri, class);
                     if let Some(props) = &class.range {
@@ -175,16 +179,33 @@ impl InstanceProcessor {
             }
         }
 
+        tracing::debug!(
+            "[get_valid_property_labels] Getting valid property labels for class: {}",
+            class_type
+        );
+        tracing::debug!(
+            "[get_valid_property_labels] ALL CLASSES: {}",
+            vocab
+                .classes
+                .values()
+                .map(|c| c.id.clone().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        tracing::debug!(
+            "[get_valid_property_labels] CLASS WE ARE LOOKING FOR: {:#?}",
+            class_iri
+        );
+
         // Get properties from class's rdfs:range
+        // TODO: make this more efficient by searching for the class w/ "Custodian" rather than "http://example.com/Custodian"
         if let Some(class) = vocab
             .classes
             .values_mut()
             .find(|c| c.id.final_iri() == class_iri)
         {
+            // tracing::debug!("Found class: {:#?}", class.id);
             if let Some(props) = &mut class.range {
-                // if map_to_label.is_some() {
-                //     let mapped_column_exists
-                // }
                 for prop_iri in props {
                     // Get property label from vocabulary
                     if let Some(prop) = vocab.properties.values().find(|p| match prop_iri {
@@ -226,6 +247,10 @@ impl InstanceProcessor {
                     valid_labels.insert(header.clone());
                 }
                 None => {
+                    tracing::debug!(
+                        "[get_valid_property_labels] map_to_label: {:#?}",
+                        map_to_label
+                    );
                     let message = format!(
                         "Column for mapToLabel ({}) is either not of type, String, or is not found in valid labels for class '{}'. Expected one of: {}",
                         map_to_label,
@@ -686,26 +711,6 @@ impl InstanceProcessor {
         target_class: &Option<String>,
         datatype: &PropertyDatatype,
     ) -> Result<serde_json::Value, ProcessorError> {
-        // let class_match = match target_class {
-        //     Some(target_class) => self
-        //     .vocabulary
-        //     .as_ref()
-        //     .unwrap()
-        //     .classes
-        //     .iter()
-        //     .find_map(|(id, _)| {
-        //             let final_id = id.normalize().to_pascal_case().with_base_iri(&self.manifest.model.base_iri);
-        //             match final_id {
-        //             IdOpt::String(string_id) if &string_id == target_class => Some(id.clone()),
-        //             IdOpt::ReplacementMap { original_id, .. } if &original_id == target_class => {
-        //                 Some(id.clone())
-        //             }
-        //             _ => None,
-        //         }
-        //     }),
-        //     None => None
-        // };
-
         let class_match = match target_class {
             Some(target_class) => {
                 self.vocabulary
@@ -717,7 +722,7 @@ impl InstanceProcessor {
                         let final_id = id
                             .normalize()
                             .to_pascal_case()
-                            .with_base_iri(&self.manifest.model.base_iri);
+                            .with_base_iri(&self.model_base_iri);
                         match final_id {
                             IdOpt::String(string_id) => &string_id == target_class,
                             IdOpt::ReplacementMap { original_id, .. } => {
@@ -803,9 +808,8 @@ impl InstanceProcessor {
         for pivot_column in pivot_columns {
             // let base_csv_class = class_type.as_str();
             let pivot_class = pivot_column.instance_type.to_string();
-            // let pivot_class_iri = format!("{}{}", self.manifest.model.base_iri, pivot_class);
-            let pivot_class_iri = IdOpt::String(pivot_class.clone())
-                .with_base_iri(self.manifest.model.base_iri.as_str());
+            let pivot_class_iri =
+                IdOpt::String(pivot_class.clone()).with_base_iri(self.model_base_iri.as_str());
 
             let pivot_column_ref_property = pivot_column.new_relationship_property.as_str();
 

@@ -17,10 +17,14 @@ pub struct InstanceManager {
 }
 
 impl InstanceManager {
-    pub fn new(manifest: Arc<Manifest>, is_strict: bool) -> Self {
+    pub fn new(manifest: Arc<Manifest>, is_strict: bool, model_base_iri: String) -> Self {
         Self {
-            processor: processor::InstanceProcessor::new(Arc::clone(&manifest), is_strict),
-            serializer: serializer::InstanceSerializer::new(manifest),
+            processor: processor::InstanceProcessor::new(
+                Arc::clone(&manifest),
+                is_strict,
+                model_base_iri.clone(),
+            ),
+            serializer: serializer::InstanceSerializer::new(manifest, model_base_iri),
         }
     }
 

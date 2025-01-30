@@ -11,11 +11,12 @@ use crate::{Manifest, VocabularyMap};
 
 pub struct InstanceSerializer {
     manifest: Arc<Manifest>,
+    base_iri: String,
 }
 
 impl InstanceSerializer {
-    pub fn new(manifest: Arc<Manifest>) -> Self {
-        Self { manifest }
+    pub fn new(manifest: Arc<Manifest>, base_iri: String) -> Self {
+        Self { manifest, base_iri }
     }
 
     fn create_context(&self, vocabulary: &VocabularyMap) -> Map<String, serde_json::Value> {
@@ -32,10 +33,10 @@ impl InstanceSerializer {
         );
 
         // Add model baseIRI for term resolution
-        if !self.manifest.model.base_iri.is_empty() {
+        if !self.base_iri.is_empty() {
             context.insert(
                 "@vocab".to_string(),
-                serde_json::Value::String(self.manifest.model.base_iri.clone()),
+                serde_json::Value::String(self.base_iri.clone()),
             );
         }
 

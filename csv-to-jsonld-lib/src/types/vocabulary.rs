@@ -8,6 +8,7 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::{collections::HashMap, fmt::Display};
 
+use super::csv::StrictPropertyDatatype;
 use super::PropertyDatatype;
 
 #[derive(Debug, Clone, Eq, Deserialize)]
@@ -18,6 +19,45 @@ pub enum IdOpt {
         original_id: String,
         replacement_id: String,
     },
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum StrictIdOpt {
+    String(String),
+    ReplacementMap {
+        original_id: String,
+        replacement_id: String,
+    },
+}
+
+impl From<IdOpt> for StrictIdOpt {
+    fn from(id: IdOpt) -> Self {
+        match id {
+            IdOpt::String(s) => StrictIdOpt::String(s),
+            IdOpt::ReplacementMap {
+                original_id,
+                replacement_id,
+            } => StrictIdOpt::ReplacementMap {
+                original_id,
+                replacement_id,
+            },
+        }
+    }
+}
+
+impl From<StrictIdOpt> for IdOpt {
+    fn from(id: StrictIdOpt) -> Self {
+        match id {
+            StrictIdOpt::String(s) => IdOpt::String(s),
+            StrictIdOpt::ReplacementMap {
+                original_id,
+                replacement_id,
+            } => IdOpt::ReplacementMap {
+                original_id,
+                replacement_id,
+            },
+        }
+    }
 }
 
 impl Hash for IdOpt {
@@ -192,6 +232,65 @@ pub struct VocabularyTerm {
     pub range: Option<Vec<PropertyDatatype>>,
     pub extra_items: HashMap<String, String>,
     pub one_of: Option<Vec<IdOpt>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StrictVocabularyTerm {
+    pub id: StrictIdOpt,
+    pub type_: Vec<String>,
+    pub label: Option<String>,
+    pub sub_class_of: Option<Vec<String>>,
+    pub comment: Option<String>,
+    pub domain: Option<Vec<String>>,
+    pub range: Option<Vec<StrictPropertyDatatype>>,
+    pub extra_items: HashMap<String, String>,
+    pub one_of: Option<Vec<StrictIdOpt>>,
+}
+
+impl From<VocabularyTerm> for StrictVocabularyTerm {
+    fn from(term: VocabularyTerm) -> Self {
+        let id = term.id.into();
+        let range = term
+            .range
+            .map(|range| range.into_iter().map(Into::into).collect());
+        let one_of = term
+            .one_of
+            .map(|one_of| one_of.into_iter().map(Into::into).collect());
+        Self {
+            id,
+            type_: term.type_,
+            label: term.label,
+            sub_class_of: term.sub_class_of,
+            comment: term.comment,
+            domain: term.domain,
+            range,
+            extra_items: term.extra_items,
+            one_of,
+        }
+    }
+}
+
+impl From<StrictVocabularyTerm> for VocabularyTerm {
+    fn from(term: StrictVocabularyTerm) -> Self {
+        let id = term.id.into();
+        let range = term
+            .range
+            .map(|range| range.into_iter().map(Into::into).collect());
+        let one_of = term
+            .one_of
+            .map(|one_of| one_of.into_iter().map(Into::into).collect());
+        Self {
+            id,
+            type_: term.type_,
+            label: term.label,
+            sub_class_of: term.sub_class_of,
+            comment: term.comment,
+            domain: term.domain,
+            range,
+            extra_items: term.extra_items,
+            one_of,
+        }
+    }
 }
 
 impl VocabularyTerm {
@@ -385,13 +484,70 @@ pub struct JsonLdVocabulary {
     pub insert: FlureeDataModel,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct VocabularyMap {
     pub classes: HashMap<IdOpt, VocabularyTerm>,
     pub properties: HashMap<IdOpt, VocabularyTerm>,
     /// Maps class name to its identifier property term
     /// We use class name <String> because this comes from the manifest directly
     pub identifiers: HashMap<String, VocabularyTerm>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StrictVocabularyMap {
+    pub classes: Vec<(StrictIdOpt, StrictVocabularyTerm)>,
+    pub properties: Vec<(StrictIdOpt, StrictVocabularyTerm)>,
+    pub identifiers: HashMap<String, StrictVocabularyTerm>,
+}
+
+impl From<VocabularyMap> for StrictVocabularyMap {
+    fn from(vocabulary_map: VocabularyMap) -> Self {
+        let classes = vocabulary_map
+            .classes
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        let properties = vocabulary_map
+            .properties
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        let identifiers = vocabulary_map
+            .identifiers
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect();
+        Self {
+            classes,
+            properties,
+            identifiers,
+        }
+    }
+}
+
+impl From<StrictVocabularyMap> for VocabularyMap {
+    fn from(vocabulary_map: StrictVocabularyMap) -> Self {
+        let classes = vocabulary_map
+            .classes
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        let properties = vocabulary_map
+            .properties
+            .into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        let identifiers = vocabulary_map
+            .identifiers
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect();
+        Self {
+            classes,
+            properties,
+            identifiers,
+        }
+    }
 }
 
 impl VocabularyMap {
@@ -401,17 +557,6 @@ impl VocabularyMap {
             properties: HashMap::new(),
             identifiers: HashMap::new(),
         }
-    }
-
-    pub fn from_file(path: &PathBuf) -> Result<Self, ProcessorError> {
-        tracing::debug!("Loading vocabulary meta file: {:#?}", path);
-        let bytes = std::fs::read(path).map_err(|e| {
-            ProcessorError::Processing(format!("Failed to read vocabulary meta file: {}", e))
-        })?;
-        let vocabulary_map = bincode::deserialize(&bytes).map_err(|e| {
-            ProcessorError::Processing(format!("Failed to deserialize vocabulary meta file: {}", e))
-        })?;
-        Ok(vocabulary_map)
     }
 
     /// Get the identifier property label for a given class
