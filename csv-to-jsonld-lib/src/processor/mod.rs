@@ -1,4 +1,4 @@
-use crate::error::ProcessorError;
+use crate::error::{ProcessingOutcome, ProcessingState, ProcessorError};
 use crate::instance::InstanceManager;
 use crate::manifest::{InstanceStep, Manifest, StepType};
 use crate::vocabulary::VocabularyManager;
@@ -86,6 +86,7 @@ pub struct Processor {
     base_path: PathBuf,
     output_path: PathBuf,
     export_vocab_meta: bool,
+    processing_state: ProcessingState,
 }
 
 impl Processor {
@@ -111,6 +112,7 @@ impl Processor {
             output_path,
             manifest,
             export_vocab_meta,
+            processing_state: ProcessingState::new(),
         })
     }
 
@@ -126,22 +128,26 @@ impl Processor {
         self.base_path.join(relative_path)
     }
 
-    pub async fn process(&mut self) -> Result<(), ProcessorError> {
+    pub async fn process(&mut self) -> Result<ProcessingOutcome, ProcessorError> {
         tracing::info!("Starting processing with manifest: {}", self.manifest.name);
 
         tracing::info!("Processing model files...");
         let mut model_sequence = self.model_sequence();
         for step in model_sequence.drain(..) {
-            self.process_model_step(step).await?;
+            if let Err(e) = self.process_model_step(step).await {
+                self.processing_state.add_error(
+                    format!("Error processing model step: {}", e),
+                    Some("model_processing".to_string()),
+                );
+                // TODO: Decide how to proceed after model step error
+                // For now, we'll continue to collect all errors
+            }
         }
 
         // Clone the vocabulary for the instance processor before consuming it to write to disk
-        let vocabulary = self.vocabulary_manager.processor.take_vocabulary();
-
-        // Generate and save vocabulary
-        // self.vocabulary_manager
-        //     .save_vocabulary(&self.output_path)
-        //     .await?;
+        let (vocabulary, vocab_state) = self.vocabulary_manager.processor.take_vocabulary();
+        // Merge vocabulary processing state into main state
+        self.processing_state.merge(vocab_state);
 
         self.instance_manager.set_vocabulary(vocabulary);
 
@@ -149,7 +155,6 @@ impl Processor {
         let mut instance_sequence = self.instance_sequence();
 
         // Order sequence so that any ImportStep with InstanceStep::PicklistStep is processed first
-        // and if we do reorder the instance_sequence, we should warn the user
         let mut did_reorder_instance_sequence = false;
         instance_sequence.sort_by(|a, b| {
             let a_is_picklist = a
@@ -172,32 +177,79 @@ impl Processor {
             }
         });
         if did_reorder_instance_sequence {
-            tracing::warn!("Reordered instance sequence to process PicklistStep(s) first");
-        };
-
-        for step in instance_sequence {
-            self.process_instance_step(&step).await?;
+            self.processing_state.add_warning(
+                "Reordered instance sequence to process PicklistStep(s) first".to_string(),
+                Some("instance_processing".to_string()),
+            );
         }
 
-        // Save instance data; this takes place before save_vocabulary, which will take the vocabulary in memory
-        self.instance_manager
-            .save_instances(&self.output_path)
-            .await?;
+        for step in instance_sequence {
+            if let Err(e) = self.process_instance_step(&step).await {
+                self.processing_state.add_error(
+                    format!("Error processing instance step: {}", e),
+                    Some("instance_processing".to_string()),
+                );
+                // TODO: Decide how to proceed after instance step error
+                // For now, we'll continue to collect all errors
+            }
+        }
 
-        let vocabulary = self.instance_manager.take_vocabulary();
+        // Save instance data
+        if let Err(e) = self
+            .instance_manager
+            .save_instances(&self.output_path)
+            .await
+        {
+            self.processing_state.add_error(
+                format!("Failed to save instances: {}", e),
+                Some("save_instances".to_string()),
+            );
+        }
+
+        let (vocabulary, instance_state) = self.instance_manager.take_vocabulary();
+        // Merge instance processing state into main state
+        self.processing_state.merge(instance_state);
 
         if self.export_vocab_meta {
-            self.vocabulary_manager
+            if let Err(e) = self
+                .vocabulary_manager
                 .save_vocabulary_meta(&vocabulary, &self.output_path)
-                .await?;
-        };
+                .await
+            {
+                self.processing_state.add_error(
+                    format!("Failed to save vocabulary metadata: {}", e),
+                    Some("save_vocabulary_meta".to_string()),
+                );
+            }
+        }
 
-        self.vocabulary_manager
+        if let Err(e) = self
+            .vocabulary_manager
             .save_vocabulary(vocabulary, &self.output_path)
-            .await?;
+            .await
+        {
+            self.processing_state.add_error(
+                format!("Failed to save vocabulary: {}", e),
+                Some("save_vocabulary".to_string()),
+            );
+        }
 
-        tracing::info!("Processing completed successfully");
-        Ok(())
+        let outcome = ProcessingOutcome::from_state(self.processing_state.clone());
+        match &outcome {
+            ProcessingOutcome::Success => {
+                tracing::info!("Processing completed successfully");
+            }
+            ProcessingOutcome::SuccessWithWarnings(_) => {
+                tracing::info!("Processing completed with warnings");
+            }
+            ProcessingOutcome::Failure {
+                errors: _,
+                warnings: _,
+            } => {
+                tracing::error!("Processing completed with errors");
+            }
+        }
+        Ok(outcome)
     }
 
     async fn process_model_step(&mut self, step: ImportStep) -> Result<(), ProcessorError> {
@@ -218,11 +270,6 @@ impl Processor {
         }
 
         tracing::debug!("At end of step: {:?}", step_name);
-        // tracing::debug!(
-        //     "Current vocabulary: {:#?}",
-        //     self.vocabulary_manager.processor.vocabulary
-        // );
-
         Ok(())
     }
 

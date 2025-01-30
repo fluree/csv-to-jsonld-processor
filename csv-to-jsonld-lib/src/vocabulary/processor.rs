@@ -6,7 +6,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use super::mapping::{MappingConfig, RowValues, VocabularyColumnMapping};
-use crate::error::ProcessorError;
+use crate::error::{ProcessingState, ProcessorError};
 use crate::manifest::{ImportStep, ModelStep, StepType};
 use crate::types::{
     IdOpt, OnEntity, PropertyDatatype, StrictIdOpt, StrictVocabularyMap, VocabularyMap,
@@ -23,6 +23,7 @@ pub struct VocabularyProcessor {
     ignore: HashMap<String, Vec<String>>,
     base_iri: String,
     namespace_iris: bool,
+    processing_state: ProcessingState,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -89,6 +90,7 @@ impl VocabularyProcessor {
             ignore,
             base_iri,
             namespace_iris,
+            processing_state: ProcessingState::new(),
         }
     }
 
@@ -115,6 +117,7 @@ impl VocabularyProcessor {
             ignore: vocabulary_processor_metadata.ignore,
             base_iri: vocabulary_processor_metadata.base_iri,
             namespace_iris: vocabulary_processor_metadata.namespace_iris,
+            processing_state: ProcessingState::new(),
         })
     }
 
@@ -421,7 +424,8 @@ impl VocabularyProcessor {
                     if self.is_strict {
                         return Err(ProcessorError::Processing(error_string));
                     } else {
-                        tracing::warn!("{}", error_string);
+                        self.processing_state
+                            .add_warning(error_string, Some("property_processing".to_string()));
                         PropertyDatatype::URI(Some(expand_iri_with_base(
                             &self.base_iri,
                             &to_pascal_case(property_class),
@@ -569,7 +573,10 @@ impl VocabularyProcessor {
         Ok(())
     }
 
-    pub fn take_vocabulary(&mut self) -> VocabularyMap {
-        std::mem::take(&mut self.vocabulary)
+    pub fn take_vocabulary(&mut self) -> (VocabularyMap, ProcessingState) {
+        let vocabulary = std::mem::take(&mut self.vocabulary);
+        let state = std::mem::take(&mut self.processing_state);
+
+        (vocabulary, state)
     }
 }

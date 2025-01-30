@@ -1,10 +1,15 @@
-mod processor;
+mod processor_impl;
 mod serializer;
+mod types;
+mod validation;
+mod value_processor;
+
+pub(crate) use types::InstanceProcessor;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::error::ProcessorError;
+use crate::error::{ProcessingState, ProcessorError};
 use crate::manifest::ImportStep;
 use crate::types::VocabularyMap;
 use crate::Manifest;
@@ -12,14 +17,14 @@ use crate::Manifest;
 pub use crate::types::{JsonLdInstance, JsonLdInstances};
 
 pub struct InstanceManager {
-    pub processor: processor::InstanceProcessor,
+    pub processor: InstanceProcessor,
     pub serializer: serializer::InstanceSerializer,
 }
 
 impl InstanceManager {
     pub fn new(manifest: Arc<Manifest>, is_strict: bool, model_base_iri: String) -> Self {
         Self {
-            processor: processor::InstanceProcessor::new(
+            processor: InstanceProcessor::new(
                 Arc::clone(&manifest),
                 is_strict,
                 model_base_iri.clone(),
@@ -32,7 +37,7 @@ impl InstanceManager {
         self.processor.set_vocabulary(vocabulary);
     }
 
-    pub fn take_vocabulary(&mut self) -> VocabularyMap {
+    pub fn take_vocabulary(&mut self) -> (VocabularyMap, ProcessingState) {
         self.processor.take_vocabulary()
     }
 

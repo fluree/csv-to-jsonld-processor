@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use csv_to_jsonld::{Manifest, Processor, ProcessorBuilder};
+use csv_to_jsonld::{Manifest, ProcessingOutcome, Processor, ProcessorBuilder};
 use manifest::{Template, BASIC_MANIFEST, FULL_MANIFEST};
 use std::{fs, path::PathBuf};
-use tracing::{info, Level};
+use tracing::{error, info, warn, Level};
 
 mod manifest;
 
@@ -186,12 +186,48 @@ async fn process_command(
     let mut processor = processor_builder.build()?;
 
     info!("Beginning CSV processing...");
-    processor
+    let outcome = processor
         .process()
         .await
         .context("Failed to process CSV files")?;
 
-    info!("Processing completed successfully");
+    match outcome {
+        ProcessingOutcome::Success => {
+            info!("Processing completed successfully");
+        }
+        ProcessingOutcome::SuccessWithWarnings(warnings) => {
+            warn!("Processing completed with warnings:");
+            for warning in warnings {
+                if let Some(source) = warning.source {
+                    warn!("[{}] {}", source, warning.message);
+                } else {
+                    warn!("{}", warning.message);
+                }
+            }
+        }
+        ProcessingOutcome::Failure { errors, warnings } => {
+            if !warnings.is_empty() {
+                warn!("--- Warnings ---");
+                for warning in warnings {
+                    if let Some(source) = warning.source {
+                        warn!("[{}] {}", source, warning.message);
+                    } else {
+                        warn!("{}", warning.message);
+                    }
+                }
+            }
+
+            error!("--- Errors ---");
+            for error in errors {
+                if let Some(source) = error.source {
+                    error!("[{}] {}", source, error.message);
+                } else {
+                    error!("{}", error.message);
+                }
+            }
+            anyhow::bail!("Processing failed with errors");
+        }
+    }
     Ok(())
 }
 

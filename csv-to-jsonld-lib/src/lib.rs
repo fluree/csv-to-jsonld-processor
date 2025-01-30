@@ -11,7 +11,7 @@ mod types;
 mod utils;
 mod vocabulary;
 
-pub use error::ProcessorError;
+pub use error::{ProcessingOutcome, ProcessorError};
 pub use instance::{InstanceManager, JsonLdInstance, JsonLdInstances};
 pub use manifest::{ImportSection, ImportStep, Manifest};
 pub use processor::{Processor, ProcessorBuilder};
