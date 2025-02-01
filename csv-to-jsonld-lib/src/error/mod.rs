@@ -49,8 +49,8 @@ impl From<ProcessorError> for ProcessingMessage {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessingMessage {
-    source: Option<String>,
-    message: String,
+    pub source: Option<String>,
+    pub message: String,
 }
 
 impl ProcessingMessage {
