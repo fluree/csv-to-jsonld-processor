@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{error, info, warn};
 
@@ -46,10 +47,10 @@ impl From<ProcessorError> for ProcessingMessage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessingMessage {
-    pub message: String,
-    pub source: Option<String>,
+    source: Option<String>,
+    message: String,
 }
 
 impl ProcessingMessage {
