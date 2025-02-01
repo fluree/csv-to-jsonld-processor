@@ -1,20 +1,19 @@
 use super::types::InstanceProcessor;
 use crate::error::ProcessorError;
+use crate::excel::ExcelReader;
 use crate::manifest::{ImportStep, InstanceStep, StepType};
 use crate::types::{IdOpt, JsonLdInstance, PropertyDatatype};
 use crate::utils::{to_kebab_case, to_pascal_case};
-use crate::ProcessingState;
+use crate::{Manifest, ProcessingState};
 use serde_json::Map;
 use std::collections::hash_map::Entry;
 use std::mem::take;
-use std::path::PathBuf;
 use uuid::Uuid;
 
 impl InstanceProcessor {
     pub async fn process_simple_instance(
         &mut self,
         step: &ImportStep,
-        // instance_path: &str,
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<ProcessingState, ProcessorError> {
         let is_picklist_step = step
@@ -50,19 +49,24 @@ impl InstanceProcessor {
             ))
         })?.clone();
 
-        // let file_path = PathBuf::from(instance_path).join(&step.path);
+        let csv_bytes = if let Some(sheet_name) = &step.sheet {
+            // Excel processing
+            let excel_file = self.manifest.excel_file.as_ref().ok_or_else(|| {
+                ProcessorError::Processing("Excel file not specified in manifest".into())
+            })?;
+            let reader = excel_file.get_reader(s3_client).await.map_err(|e| {
+                tracing::error!("Failed to get Excel reader for {:#?}: {}", &excel_file, e);
+                ProcessorError::Processing(format!("Failed to get Excel reader: {}", e))
+            })?;
 
-        let contents_results = step.path.read_contents(s3_client).await?;
+            let mut excel_reader = ExcelReader::new(reader)?;
+            excel_reader.get_sheet_as_csv(sheet_name)?
+        } else {
+            // CSV processing
+            step.path.read_contents(s3_client).await?
+        };
 
-        let mut rdr = csv::Reader::from_reader(contents_results.as_slice());
-
-        // let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
-        //     ProcessorError::Processing(format!(
-        //         "Failed to read CSV @ {}: {}",
-        //         &file_path.to_string_lossy(),
-        //         e
-        //     ))
-        // })?;
+        let mut rdr = csv::Reader::from_reader(csv_bytes.as_slice());
 
         let headers: Vec<String> = rdr
             .headers()
@@ -314,14 +318,12 @@ impl InstanceProcessor {
     pub async fn process_subclass_instance(
         &mut self,
         step: &ImportStep,
-        // instance_path: &str,
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<ProcessingState, ProcessorError> {
         // TODO: Handle ProcessingState here the way we did for process_simple_instance
         // Get the parent class type from the manifest
         let parent_class_type = step.instance_type.clone();
 
-        // Get the subclass property that indicates which subclass each instance belongs to
         let subclass_property = step.sub_class_property.as_ref().ok_or_else(|| {
             ProcessorError::Processing(
                 "SubClassInstanceStep requires subClassProperty field".into(),
@@ -334,14 +336,12 @@ impl InstanceProcessor {
 
         tracing::debug!("Getting identifier label for class '{}'", parent_class_type);
 
-        // Check for an override column for identifier label
         let override_label = step
             .overrides
             .iter()
             .find(|over_ride| over_ride.map_to == "@id")
             .map(|over_ride| &over_ride.column);
 
-        // Get the identifier property for this class
         let identifier_label = vocab
             .get_identifier_label(&parent_class_type)
             .or(override_label)
@@ -353,22 +353,27 @@ impl InstanceProcessor {
             })?
             .clone();
 
-        // let file_path = PathBuf::from(instance_path).join(&step.path);
         tracing::debug!("Reading instance data from {:?}", &step.path);
 
-        let contents_result = step.path.read_contents(s3_client).await?;
+        let csv_bytes = if let Some(sheet_name) = &step.sheet {
+            // Excel processing
+            let excel_file = self.manifest.excel_file.as_ref().ok_or_else(|| {
+                ProcessorError::Processing("Excel file not specified in manifest".into())
+            })?;
+            let reader = excel_file.get_reader(s3_client).await.map_err(|e| {
+                tracing::error!("Failed to get Excel reader for {:#?}: {}", &excel_file, e);
+                ProcessorError::Processing(format!("Failed to get Excel reader: {}", e))
+            })?;
 
-        let mut rdr = csv::Reader::from_reader(contents_result.as_slice());
+            let mut excel_reader = ExcelReader::new(reader)?;
+            excel_reader.get_sheet_as_csv(sheet_name)?
+        } else {
+            // CSV processing
+            step.path.read_contents(s3_client).await?
+        };
 
-        // let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
-        //     ProcessorError::Processing(format!(
-        //         "Failed to read CSV @ {}: {}",
-        //         &file_path.to_string_lossy(),
-        //         e
-        //     ))
-        // })?;
+        let mut rdr = csv::Reader::from_reader(csv_bytes.as_slice());
 
-        // Read headers and find important column indices
         let headers = rdr
             .headers()
             .map_err(|e| ProcessorError::Processing(format!("Failed to read CSV headers: {}", e)))?
@@ -394,7 +399,6 @@ impl InstanceProcessor {
                 ))
             })?;
 
-        // Process each row
         for (result_row_num, result) in rdr.records().enumerate() {
             let record = match result {
                 Ok(record) => record,
@@ -412,7 +416,6 @@ impl InstanceProcessor {
                 }
             };
 
-            // Get the identifier value
             let id = match record.get(id_column_index) {
                 Some(id) if !id.is_empty() => id.to_string(),
                 _ => {
@@ -438,7 +441,6 @@ impl InstanceProcessor {
                 id
             };
 
-            // Get the subclass reference
             let subclass_ref = match record.get(subclass_column_index) {
                 Some(value) if !value.is_empty() => value,
                 _ => {
@@ -509,7 +511,6 @@ impl InstanceProcessor {
                 }
             }
 
-            // Map CSV columns to JSON-LD properties (excluding id and subclass columns)
             for (i, header) in headers.iter().enumerate() {
                 if i != id_column_index && i != subclass_column_index {
                     if let Some(value) = record.get(i) {
@@ -525,7 +526,6 @@ impl InstanceProcessor {
                 }
             }
 
-            // Create instance with both parent class and subclass types
             let instance = JsonLdInstance {
                 id: IdOpt::String(id),
                 type_: vec![IdOpt::String(parent_class_type.clone()), subclass_ref],
@@ -552,7 +552,6 @@ impl InstanceProcessor {
     pub async fn process_properties_instance(
         &mut self,
         step: &ImportStep,
-        // instance_path: &str,
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<ProcessingState, ProcessorError> {
         // TODO: Handle ProcessingState here the way we did for process_simple_instance
@@ -562,14 +561,12 @@ impl InstanceProcessor {
             ProcessorError::Processing("Vocabulary must be set before processing instances".into())
         })?;
 
-        // Check for an override column for identifier label
         let override_label = step
             .overrides
             .iter()
             .find(|over_ride| over_ride.map_to == "@id")
             .map(|over_ride| &over_ride.column);
 
-        // Get the identifier property for this class
         let identifier_label = vocab
             .get_identifier_label(&class_type)
             .or(override_label)
@@ -581,7 +578,6 @@ impl InstanceProcessor {
             })?
             .clone();
 
-        // Get property ID and value column names from overrides or use defaults
         let property_id_column = step
             .overrides
             .iter()
@@ -596,27 +592,40 @@ impl InstanceProcessor {
             .map(|o| o.column.as_str())
             .unwrap_or("Property Value");
 
-        // let file_path = PathBuf::from(instance_path).join(&step.path);
         tracing::debug!("Reading instance data from {:?}", step.path);
 
-        let contents_result = step.path.read_contents(s3_client).await?;
+        let csv_bytes = if let Some(sheet_name) = &step.sheet {
+            // Excel processing
+            let excel_file = self.manifest.excel_file.as_ref().ok_or_else(|| {
+                ProcessorError::Processing("Excel file not specified in manifest".into())
+            })?;
+            let reader = excel_file.get_reader(s3_client).await.map_err(|e| {
+                tracing::error!("Failed to get Excel reader for {:#?}: {}", &excel_file, e);
+                ProcessorError::Processing(format!("Failed to get Excel reader: {}", e))
+            })?;
 
-        let mut rdr = csv::Reader::from_reader(contents_result.as_slice());
+            let mut excel_reader = ExcelReader::new(reader)?;
+            excel_reader.get_sheet_as_csv(sheet_name)?
+        } else {
+            // CSV processing
+            step.path.read_contents(s3_client).await?
+        };
 
-        // let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
-        //     ProcessorError::Processing(format!(
-        //         "Failed to read CSV @ {}: {}",
-        //         &file_path.to_string_lossy(),
-        //         e
-        //     ))
-        // })?;
+        let mut rdr = csv::Reader::from_reader(csv_bytes.as_slice());
 
-        // Read headers and find required columns
         let headers = rdr.headers().map_err(|e| {
             ProcessorError::Processing(format!("Failed to read CSV headers: {}", e))
         })?;
 
-        // Find column indices
+        // TODO: This is bad... we need to think about a scenario like an excel spreadsheet where we can't know if each sheet is a model file or instance file
+        if Manifest::is_model_file(headers) {
+            tracing::warn!(
+                "CSV or sheet {} does not appear to be an instance file, skipping",
+                step.path
+            );
+            return Ok(take(&mut self.processing_state));
+        }
+
         let id_column_index = headers
             .iter()
             .position(|h| h == identifier_label)
@@ -647,7 +656,6 @@ impl InstanceProcessor {
                 ))
             })?;
 
-        // Process each row
         for (result_row_num, result) in rdr.records().enumerate() {
             let record = match result {
                 Ok(record) => record,
@@ -748,21 +756,17 @@ impl InstanceProcessor {
                 }
             };
 
-            // Create or update instance
             self.instances
                 .entry(entity_id.to_string())
                 .and_modify(|instance| {
-                    // Instance already exists, modify it as needed
                     instance
                         .properties
                         .entry(property_id.final_iri())
                         .and_modify(|current| {
                             if current.is_array() {
-                                // Add to existing array
                                 let array = current.as_array_mut().unwrap();
                                 array.push(serde_json::Value::String(property_value.to_string()));
                             } else {
-                                // Convert to array with both values
                                 let array = vec![
                                     current.take(),
                                     serde_json::Value::String(property_value.to_string()),
@@ -773,7 +777,6 @@ impl InstanceProcessor {
                         .or_insert_with(|| serde_json::Value::String(property_value.to_string()));
                 })
                 .or_insert_with(|| {
-                    // Instance does not exist, create it
                     let mut properties = Map::new();
                     properties.insert(
                         property_id.final_iri(),

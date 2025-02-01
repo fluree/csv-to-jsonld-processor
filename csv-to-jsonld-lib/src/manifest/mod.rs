@@ -1,15 +1,20 @@
+use crate::contains_variant;
 use crate::error::{ProcessingState, ProcessorError};
 use crate::types::{ColumnOverride, ExtraItem, PivotColumn};
-use crate::{contains_variant, JsonLdInstances};
+use csv::StringRecord;
 use json_comments::StripComments;
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashSet;
 use std::fmt::Display;
-use std::io::{self, Read};
+use std::io::{self, Cursor, Read, Seek};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{fmt, fs, mem};
+use tokio::io::AsyncRead;
+
+pub trait ReadSeek: Read + Seek + Send {}
+impl<T: Read + Seek + Send> ReadSeek for T {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StorageLocation {
@@ -56,7 +61,6 @@ impl Serialize for StorageLocation {
     }
 }
 
-// Implement FromStr for StorageLocation
 impl FromStr for StorageLocation {
     type Err = String;
 
@@ -92,9 +96,7 @@ impl StorageLocation {
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> io::Result<Vec<u8>> {
         match self {
-            StorageLocation::Local(path) => {
-                fs::read(path) // Read from filesystem
-            }
+            StorageLocation::Local(path) => fs::read(path),
             StorageLocation::S3 { bucket, key } => {
                 let s3_client = s3_client.expect("S3 client is required for S3 operations");
 
@@ -111,12 +113,49 @@ impl StorageLocation {
                 let body = resp.body.collect().await.map_err(|e| {
                     io::Error::new(io::ErrorKind::Other, format!("S3 body read error: {}", e))
                 })?;
-                Ok(body.into_bytes().to_vec()) // Convert ByteStream to Vec<u8>
+                Ok(body.into_bytes().to_vec())
             }
         }
     }
 
-    // async fn write(&self, contents: )
+    pub fn is_dir(&self) -> bool {
+        match self {
+            StorageLocation::Local(path) => path.is_dir(),
+            // TODO: This isn't great, but the only other option is to make an S3 request to list
+            StorageLocation::S3 { key, .. } => key.to_string_lossy().ends_with('/'),
+        }
+    }
+
+    pub fn join(&self, path: &str) -> StorageLocation {
+        match self {
+            StorageLocation::Local(base) => StorageLocation::Local(base.join(path)),
+            StorageLocation::S3 { bucket, key } => {
+                let new_key = key.join(path);
+                StorageLocation::S3 {
+                    bucket: bucket.clone(),
+                    key: new_key,
+                }
+            }
+        }
+    }
+
+    pub async fn get_reader(
+        &self,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> io::Result<Box<dyn ReadSeek>> {
+        match self {
+            StorageLocation::Local(path) => {
+                let file = fs::File::open(path)?;
+                Ok(Box::new(file))
+            }
+            StorageLocation::S3 { .. } => {
+                // For S3, we still need to download the content since we can't stream it directly
+                // But we wrap it in a Cursor to provide a Read interface
+                let contents = self.read_contents(s3_client).await?;
+                Ok(Box::new(Cursor::new(contents)))
+            }
+        }
+    }
 
     pub async fn write_contents<P: AsRef<[u8]>>(
         &self,
@@ -125,27 +164,21 @@ impl StorageLocation {
     ) -> Result<(), ProcessorError> {
         match self {
             StorageLocation::Local(output_path) => {
-                let output_dir = if output_path.is_dir() {
-                    output_path.clone()
-                } else {
-                    // If the path doesn't exist yet, assume it's intended to be a directory
-                    Path::new(&output_path).to_path_buf()
-                };
+                if let Some(parent) = output_path.parent() {
+                    fs::create_dir_all(parent).map_err(|e| {
+                        ProcessorError::Processing(format!(
+                            "Failed to create directory for instances file: {}",
+                            e
+                        ))
+                    })?;
+                }
 
-                // Create the full file path: output_dir/instances.jsonld
-                let output_path = output_dir.join("instances.jsonld");
-
-                // Ensure the directory exists
-                fs::create_dir_all(&output_dir).map_err(|e| {
+                fs::write(output_path, instances).map_err(|e| {
                     ProcessorError::Processing(format!(
-                        "Failed to create directory for instances file: {}",
+                        "Failed to write file @ {}: {}",
+                        &output_path.to_string_lossy(),
                         e
                     ))
-                })?;
-
-                // Write the JSON to the file
-                fs::write(&output_path, instances).map_err(|e| {
-                    ProcessorError::Processing(format!("Failed to write instances file: {}", e))
                 })?;
 
                 let output_path_str = output_path.to_string_lossy();
@@ -196,7 +229,7 @@ impl StorageLocation {
                 "Invalid S3 URI",
             ));
         }
-        let without_scheme = &uri[5..]; // Strip "s3://"
+        let without_scheme = &uri[5..];
         let parts: Vec<&str> = without_scheme.splitn(2, '/').collect();
 
         if parts.len() != 2 {
@@ -208,7 +241,7 @@ impl StorageLocation {
 
         let key_as_path_buf = PathBuf::from(parts[1]);
 
-        Ok((parts[0].to_string(), key_as_path_buf)) // (bucket, key)
+        Ok((parts[0].to_string(), key_as_path_buf))
     }
 }
 
@@ -301,6 +334,8 @@ impl<'de> Deserialize<'de> for StepType {
 pub struct ImportStep {
     #[serde(default)]
     pub path: StorageLocation,
+    #[serde(default)]
+    pub sheet: Option<String>,
     #[serde(rename = "@type")]
     pub types: Vec<StepType>,
     #[serde(default)]
@@ -314,10 +349,8 @@ pub struct ImportStep {
     pub replace_class_id_with: Option<String>,
     #[serde(rename = "replacePropertyIdWith")]
     pub replace_property_id_with: Option<String>,
-    // Required if the types include SubClassVocabularyStep
     #[serde(rename = "subClassOf")]
     pub sub_class_of: Option<Vec<String>>,
-    // Required if the types include SubClassInstanceStep
     #[serde(rename = "subClassProperty")]
     pub sub_class_property: Option<String>,
     #[serde(rename = "pivotColumns")]
@@ -335,8 +368,6 @@ pub struct ImportSection {
     pub base_iri: String,
     #[serde(default, rename = "namespaceIris")]
     pub namespace_iris: bool,
-    // #[serde(default)]
-    // pub path: String,
     pub sequence: Vec<ImportStep>,
 }
 
@@ -382,14 +413,14 @@ pub struct Manifest {
     pub name: String,
     #[serde(default)]
     pub description: String,
-    // TODO: change this to Option<ImportSection>
+    #[serde(default)]
+    pub excel_file: Option<StorageLocation>,
     #[serde(default)]
     pub model: ImportSection,
     #[serde(default)]
     pub instances: ImportSection,
 }
 
-/// Check for duplicate steps in either model or instances section
 fn handle_step_deduplication(
     section: &mut ImportSection,
     section_type: &str,
@@ -434,26 +465,18 @@ impl Manifest {
         let mut state = ProcessingState::new();
         tracing::info!("Validating manifest...");
 
-        if self.type_ != "CSVImportManifest" {
+        if self.type_ != "CSVImportManifest" && self.type_ != "ExcelImportManifest" {
             tracing::error!("Invalid manifest type: {}", self.type_);
             state.add_error_from(ProcessorError::InvalidManifest(
-                "Manifest must have @type of CSVImportManifest".into(),
+                "Manifest must have @type of CSVImportManifest or ExcelImportManifest".into(),
             ));
         }
 
-        // let model = if let Some(model) = &mut self.model {
-        //     model
-        // } else {
-        //     self.model = Some(ImportSection::default());
-        //     self.model.as_mut().unwrap()
-        // };
-
-        // let instances = if let Some(instances) = &mut self.instances {
-        //     instances
-        // } else {
-        //     self.instances = Some(ImportSection::default());
-        //     self.instances.as_mut().unwrap()
-        // };
+        if self.type_ == "ExcelImportManifest" && self.excel_file.is_none() {
+            state.add_error_from(ProcessorError::InvalidManifest(
+                "ExcelImportManifest requires excel_file to be specified".into(),
+            ));
+        }
 
         state.merge(handle_step_deduplication(
             &mut self.model,
@@ -465,20 +488,6 @@ impl Manifest {
             "instance",
             is_strict,
         ));
-
-        // if let Err(duplicate_steps) = &mut self.instances.deduplicate_steps() {
-        //     let message = format!(
-        //         "Duplicate instance steps found for paths: {:?}",
-        //         duplicate_steps
-        //             .iter()
-        //             .map(|s| &s.path)
-        //             .collect::<Vec<&StorageLocation>>()
-        //     );
-        //     if is_strict {
-        //         return Err(ProcessorError::InvalidManifest(message));
-        //     }
-        //     tracing::warn!(message);
-        // };
 
         for step in &self.model.sequence {
             let model_step_types: Vec<&StepType> = step
@@ -508,6 +517,14 @@ impl Manifest {
                         "SubClassVocabularyStep requires subClassOf field".into(),
                     ));
                 }
+            }
+
+            // Validate Excel sheet reference if needed
+            if self.type_ == "ExcelImportManifest" && step.sheet.is_none() {
+                state.add_error_from(ProcessorError::InvalidManifest(format!(
+                    "Excel manifest step missing sheet reference: {:?}",
+                    step
+                )));
             }
         }
 
@@ -548,7 +565,6 @@ impl Manifest {
                 ));
             }
 
-            // Validate SubClassInstanceStep has required subClassProperty
             if let StepType::InstanceStep(InstanceStep::SubClassInstanceStep) = instance_steps[0] {
                 if step.sub_class_property.is_none() {
                     tracing::error!("SubClassInstanceStep requires subClassProperty field");
@@ -557,6 +573,14 @@ impl Manifest {
                     ));
                 }
             }
+
+            // Validate Excel sheet reference if needed
+            if self.type_ == "ExcelImportManifest" && step.sheet.is_none() {
+                state.add_error_from(ProcessorError::InvalidManifest(format!(
+                    "Excel manifest step missing sheet reference: {:?}",
+                    step
+                )));
+            }
         }
 
         tracing::info!("Manifest validation successful");
@@ -564,6 +588,21 @@ impl Manifest {
             true => Ok(state),
             false => Err(state),
         }
+    }
+
+    pub fn is_model_file(headers: &StringRecord) -> bool {
+        // if every single header is contained in the list: ["Class ID", "Class Name", "Property ID", "Property Name", "Property Description", "Type", "Class Range"]
+        let model_headers = [
+            "Class ID",
+            "Class Name",
+            "Class Description",
+            "Property ID",
+            "Property Name",
+            "Property Description",
+            "Type",
+            "Class Range",
+        ];
+        headers.iter().all(|h| model_headers.contains(&h))
     }
 }
 

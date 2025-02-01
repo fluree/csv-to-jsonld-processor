@@ -12,7 +12,8 @@ use std::sync::Arc;
 pub struct ProcessorBuilder {
     manifest: Manifest,
     base_path: Option<PathBuf>,
-    output_path: Option<StorageLocation>,
+    instance_output_path: Option<StorageLocation>,
+    model_output_path: Option<StorageLocation>,
     is_strict: bool,
     export_vocab_meta: Option<StorageLocation>,
     vocab_meta_path: Option<StorageLocation>,
@@ -24,7 +25,8 @@ impl ProcessorBuilder {
         Self {
             manifest,
             base_path: None,
-            output_path: None,
+            instance_output_path: None,
+            model_output_path: None,
             is_strict: false,
             export_vocab_meta: None,
             vocab_meta_path: None,
@@ -37,8 +39,22 @@ impl ProcessorBuilder {
         self
     }
 
-    pub fn with_output_path(mut self, output_path: String) -> Result<Self> {
-        self.output_path = Some(output_path.try_into()?);
+    pub fn with_instance_output_path(mut self, output_path: String) -> Result<Self> {
+        let mut instance_output_path: StorageLocation = output_path.try_into()?;
+        if instance_output_path.is_dir() {
+            instance_output_path = instance_output_path.join("instances.jsonld");
+        };
+        tracing::info!("Instance output path: {:?}", instance_output_path);
+        self.instance_output_path = Some(instance_output_path);
+        Ok(self)
+    }
+
+    pub fn with_model_output_path(mut self, output_path: String) -> Result<Self> {
+        let mut model_output_path: StorageLocation = output_path.try_into()?;
+        if model_output_path.is_dir() {
+            model_output_path = model_output_path.join("model.jsonld");
+        };
+        self.model_output_path = Some(model_output_path);
         Ok(self)
     }
 
@@ -70,10 +86,19 @@ impl ProcessorBuilder {
                 std::env::current_dir()?
             }
         };
-        let output_path = match self.output_path {
+
+        let instance_output_path = match self.instance_output_path {
             Some(path) => path,
             None => {
-                tracing::warn!("Output path not set, using current directory");
+                tracing::warn!("Instance output path not set, using current directory");
+                StorageLocation::Local(std::env::current_dir()?)
+            }
+        };
+
+        let model_output_path = match self.model_output_path {
+            Some(path) => path,
+            None => {
+                tracing::warn!("Model output path not set, using current directory");
                 StorageLocation::Local(std::env::current_dir()?)
             }
         };
@@ -82,7 +107,8 @@ impl ProcessorBuilder {
             self.manifest,
             // base_path,
             self.is_strict,
-            output_path,
+            instance_output_path,
+            model_output_path,
             self.export_vocab_meta,
             self.vocab_meta_path,
             self.s3_client.as_ref(),
@@ -96,7 +122,8 @@ pub struct Processor {
     vocabulary_manager: VocabularyManager,
     instance_manager: InstanceManager,
     // base_path: PathBuf,
-    output_path: StorageLocation,
+    instance_output_path: StorageLocation,
+    model_output_path: StorageLocation,
     export_vocab_meta: Option<StorageLocation>,
     processing_state: ProcessingState,
     s3_client: Option<aws_sdk_s3::Client>,
@@ -107,7 +134,8 @@ impl Processor {
         manifest: Manifest,
         // base_path: P,
         is_strict: bool,
-        output_path: StorageLocation,
+        instance_output_path: StorageLocation,
+        model_output_path: StorageLocation,
         export_vocab_meta: Option<StorageLocation>,
         vocab_meta_path: Option<StorageLocation>,
         s3_client: Option<&aws_sdk_s3::Client>,
@@ -128,7 +156,8 @@ impl Processor {
             vocabulary_manager,
             instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict, base_iri),
             // base_path,
-            output_path,
+            instance_output_path,
+            model_output_path,
             manifest,
             export_vocab_meta,
             processing_state: ProcessingState::new(),
@@ -218,7 +247,7 @@ impl Processor {
         // Save instance data
         if let Err(e) = self
             .instance_manager
-            .save_instances(&self.output_path, self.s3_client.as_ref())
+            .save_instances(&self.instance_output_path, self.s3_client.as_ref())
             .await
         {
             self.processing_state.add_error(
@@ -250,7 +279,7 @@ impl Processor {
 
         if let Err(e) = self
             .vocabulary_manager
-            .save_vocabulary(vocabulary, &self.output_path, self.s3_client.as_ref())
+            .save_vocabulary(vocabulary, &self.model_output_path, self.s3_client.as_ref())
             .await
         {
             self.processing_state.add_error(

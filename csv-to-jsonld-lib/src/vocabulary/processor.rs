@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::mapping::{MappingConfig, RowValues, VocabularyColumnMapping};
 use crate::error::{ProcessingState, ProcessorError};
+use crate::excel::ExcelReader;
 use crate::manifest::{ImportStep, ModelStep, StepType, StorageLocation};
 use crate::types::{
     IdOpt, OnEntity, PropertyDatatype, StrictIdOpt, StrictVocabularyMap, VocabularyMap,
@@ -61,9 +62,6 @@ impl VocabularyProcessorMetadata {
     ) -> Result<Self, ProcessorError> {
         tracing::debug!("Loading vocabulary meta file: {:#?}", path);
         let bytes = path.read_contents(s3_client).await?;
-        // let bytes = std::fs::read(path).map_err(|e| {
-        //     ProcessorError::Processing(format!("Failed to read vocabulary meta file: {}", e))
-        // })?;
         serde_json::from_slice(&bytes).map_err(|e| {
             ProcessorError::Processing(format!(
                 "Failed to deserialize vocabulary meta file: {:#?}",
@@ -225,28 +223,31 @@ impl VocabularyProcessor {
     pub async fn process_vocabulary(
         &mut self,
         step: ImportStep,
-        // model_path: &str,
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<ProcessingState, ProcessorError> {
         let step_path = &step.path.clone();
-        // let file_path = PathBuf::from(model_path).join(step_path);
-        // let file_path = PathBuf::from(model_path).join(step_path);
         tracing::debug!("Reading vocabulary data from {:?}", step_path);
 
-        let contents_result = step_path.read_contents(s3_client).await.map_err(|e| {
-            ProcessorError::Processing(format!("Failed to read CSV @ {}: {}", &step_path, e))
-        })?;
+        let csv_bytes = if let Some(sheet_name) = &step.sheet {
+            // Excel processing
+            let excel_file = self.manifest.excel_file.as_ref().ok_or_else(|| {
+                ProcessorError::Processing("Excel file not specified in manifest".into())
+            })?;
+            let reader = excel_file.get_reader(s3_client).await.map_err(|e| {
+                tracing::error!("Failed to get Excel reader for {:#?}: {}", &excel_file, e);
+                ProcessorError::Processing(format!("Failed to get Excel reader: {}", e))
+            })?;
 
-        let mut rdr = csv::Reader::from_reader(contents_result.as_slice());
+            let mut excel_reader = ExcelReader::new(reader)?;
+            excel_reader.get_sheet_as_csv(sheet_name)?
+        } else {
+            // CSV processing
+            step_path.read_contents(s3_client).await.map_err(|e| {
+                ProcessorError::Processing(format!("Failed to read CSV @ {}: {}", &step_path, e))
+            })?
+        };
 
-        // let mut rdr: csv::Reader<std::fs::File> =
-        //     csv::Reader::from_path(&file_path).map_err(|e| {
-        //         ProcessorError::Processing(format!(
-        //             "Failed to read CSV @ {}: {}",
-        //             &file_path.to_string_lossy(),
-        //             e
-        //         ))
-        //     })?;
+        let mut rdr = csv::Reader::from_reader(csv_bytes.as_slice());
 
         // Get headers and build column mapping
         let headers = rdr.headers().map_err(|e| {
@@ -255,6 +256,17 @@ impl VocabularyProcessor {
                 &step_path, e
             ))
         })?;
+
+        // TODO: This is bad... we need to think about a scenario like an excel spreadsheet where we can't know if each sheet is a model file or instance file
+        if !Manifest::is_model_file(headers) {
+            tracing::warn!(
+                "CSV or sheet {} does not appear to be a model file, skipping",
+                step_path
+            );
+            return Ok(take(&mut self.processing_state));
+        }
+
+        tracing::info!("Headers: {:#?}", headers);
 
         tracing::debug!("CSV headers: {:?}", headers);
 
@@ -313,8 +325,6 @@ impl VocabularyProcessor {
                 }
             };
 
-            // tracing::debug!("Row values: {:#?}", row_values);
-
             match self.process_class_term(&row_values, sub_class_of.clone()) {
                 Ok(_) => (),
                 Err(e) => {
@@ -352,7 +362,6 @@ impl VocabularyProcessor {
                     class.as_ref().map(|string| {
                         IdOpt::String(string.clone()).without_base_iri(&self.base_iri)
                     })
-                    // class.as_ref().map(|string| IdOpt::String(string.clone()))
                 } else {
                     None
                 }
@@ -422,16 +431,6 @@ impl VocabularyProcessor {
                 );
             }
         }
-
-        // let label = if class_name.is_empty() {
-        //     tracing::debug!("Class name is empty, using class_id");
-        //     match class_id {
-        //         IdOpt::String(class_id) => class_id.to_string(),
-        //         IdOpt::ReplacementMap { replacement_id, .. } => replacement_id.to_string(),
-        //     }
-        // } else {
-        //     class_name.to_string()
-        // };
 
         match self.vocabulary.classes.entry(class_id.clone()) {
             Entry::Vacant(_) => {
@@ -588,17 +587,10 @@ impl VocabularyProcessor {
             class_entry.push(camel_name.final_iri());
         }
 
-        // if matches!(xsd_type, PropertyDatatype::Picklist(_)) {
-        //     self.handle_add_rdfs_label_property(property_class)?;
-        // }
         Ok(())
     }
 
     fn handle_add_rdfs_label_property(&mut self, class_id: &IdOpt) -> Result<(), ProcessorError> {
-        // class_id is the identifier of the class that the picklist property is pointing to
-        // we need to do two things:
-        // 1. Find that class in the vocabulary and add the rdfs:label property to its range
-        // 2. Add the rdfs:label property to the vocabulary properties map. If it exists, update it with the new class as its domain. If it doesn't exist, create it with the new class as its domain.
         let rdfs_label = "rdfs:label".to_string();
         let rdfs_label_id = IdOpt::String(rdfs_label.clone());
         tracing::debug!(
@@ -640,7 +632,6 @@ impl VocabularyProcessor {
                     label: Some("label".to_string()),
                     comment: Some("The human-readable label of the resource".to_string()),
                     domain: Some(vec![class_id.final_iri()]),
-                    // range: Some(vec![PropertyDatatype::URI(Some("xsd:string".to_string()))]),
                     range: Some(vec![PropertyDatatype::String]),
                     extra_items: HashMap::new(),
                     one_of: None,
@@ -657,7 +648,6 @@ impl VocabularyProcessor {
                     label: Some("label".to_string()),
                     comment: Some("The human-readable label of the resource".to_string()),
                     domain: Some(vec![class_id.final_iri()]),
-                    // range: Some(vec![PropertyDatatype::URI(Some("xsd:string".to_string()))]),
                     range: Some(vec![PropertyDatatype::String]),
                     extra_items: HashMap::new(),
                     one_of: None,

@@ -4,6 +4,7 @@
 //! based on a manifest specification.
 
 mod error;
+mod excel;
 mod instance;
 mod manifest;
 mod processor;

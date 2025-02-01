@@ -174,7 +174,8 @@ async fn process_command(
 
     let processor_builder = ProcessorBuilder::from_manifest(manifest)
         .with_base_path(base_path)
-        .with_output_path(output_path.to_string_lossy().to_string())?
+        .with_instance_output_path(output_path.to_string_lossy().to_string())?
+        .with_model_output_path(output_path.to_string_lossy().to_string())?
         .with_strict(strict)
         .with_export_vocab_meta(export_vocab_meta);
 
