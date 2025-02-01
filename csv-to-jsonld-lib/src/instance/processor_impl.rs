@@ -618,7 +618,11 @@ impl InstanceProcessor {
         })?;
 
         // TODO: This is bad... we need to think about a scenario like an excel spreadsheet where we can't know if each sheet is a model file or instance file
-        if Manifest::is_model_file(headers) {
+        // Right now, we're assuming that if the file is an excel file, this is the only scenario where we may have to guess if the file is a model file or instance file
+        if self.manifest.excel_file.is_some()
+            && self.manifest.instances.sequence.len() == self.manifest.model.sequence.len()
+            && Manifest::is_model_file(headers)
+        {
             tracing::warn!(
                 "CSV or sheet {} does not appear to be an instance file, skipping",
                 step.path
