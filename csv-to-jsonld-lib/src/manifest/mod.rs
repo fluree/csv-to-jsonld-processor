@@ -1,13 +1,216 @@
-use crate::contains_variant;
-use crate::error::ProcessorError;
+use crate::error::{ProcessingState, ProcessorError};
 use crate::types::{ColumnOverride, ExtraItem, PivotColumn};
+use crate::{contains_variant, JsonLdInstances};
 use json_comments::StripComments;
 use serde::de::{self, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashSet;
-use std::io::Read;
-use std::path::PathBuf;
-use std::{fmt, mem};
+use std::fmt::Display;
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::{fmt, fs, mem};
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum StorageLocation {
+    Local(PathBuf),
+    S3 { bucket: String, key: PathBuf },
+}
+
+impl Default for StorageLocation {
+    fn default() -> Self {
+        StorageLocation::Local(PathBuf::new())
+    }
+}
+
+impl Display for StorageLocation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StorageLocation::Local(path) => write!(f, "{}", path.display()),
+            StorageLocation::S3 { bucket, key } => write!(f, "s3://{}/{}", bucket, key.display()),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for StorageLocation {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        StorageLocation::try_from(s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Serialize for StorageLocation {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            StorageLocation::Local(path) => serializer.serialize_str(&path.to_string_lossy()),
+            StorageLocation::S3 { bucket, key } => {
+                serializer.serialize_str(&format!("s3://{}/{}", bucket, key.to_string_lossy()))
+            }
+        }
+    }
+}
+
+// Implement FromStr for StorageLocation
+impl FromStr for StorageLocation {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok((bucket, key)) = StorageLocation::parse_s3_uri(s) {
+            Ok(StorageLocation::S3 { bucket, key })
+        } else {
+            Ok(StorageLocation::Local(PathBuf::from(s)))
+        }
+    }
+}
+
+impl TryFrom<String> for StorageLocation {
+    type Error = ProcessorError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if let Ok((bucket, key)) = StorageLocation::parse_s3_uri(&value) {
+            Ok(StorageLocation::S3 { bucket, key })
+        } else {
+            match PathBuf::from_str(&value) {
+                Ok(path) => Ok(StorageLocation::Local(path)),
+                Err(_) => Err(ProcessorError::InvalidManifest(
+                    "Invalid storage location".into(),
+                )),
+            }
+        }
+    }
+}
+
+impl StorageLocation {
+    pub async fn read_contents(
+        &self,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> io::Result<Vec<u8>> {
+        match self {
+            StorageLocation::Local(path) => {
+                fs::read(path) // Read from filesystem
+            }
+            StorageLocation::S3 { bucket, key } => {
+                let s3_client = s3_client.expect("S3 client is required for S3 operations");
+
+                let resp = s3_client
+                    .get_object()
+                    .bucket(bucket)
+                    .key(key.to_str().unwrap())
+                    .send()
+                    .await
+                    .map_err(|e| {
+                        io::Error::new(io::ErrorKind::Other, format!("S3 read error: {}", e))
+                    })?;
+
+                let body = resp.body.collect().await.map_err(|e| {
+                    io::Error::new(io::ErrorKind::Other, format!("S3 body read error: {}", e))
+                })?;
+                Ok(body.into_bytes().to_vec()) // Convert ByteStream to Vec<u8>
+            }
+        }
+    }
+
+    // async fn write(&self, contents: )
+
+    pub async fn write_contents<P: AsRef<[u8]>>(
+        &self,
+        instances: &P,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<(), ProcessorError> {
+        match self {
+            StorageLocation::Local(output_path) => {
+                let output_dir = if output_path.is_dir() {
+                    output_path.clone()
+                } else {
+                    // If the path doesn't exist yet, assume it's intended to be a directory
+                    Path::new(&output_path).to_path_buf()
+                };
+
+                // Create the full file path: output_dir/instances.jsonld
+                let output_path = output_dir.join("instances.jsonld");
+
+                // Ensure the directory exists
+                fs::create_dir_all(&output_dir).map_err(|e| {
+                    ProcessorError::Processing(format!(
+                        "Failed to create directory for instances file: {}",
+                        e
+                    ))
+                })?;
+
+                // Write the JSON to the file
+                fs::write(&output_path, instances).map_err(|e| {
+                    ProcessorError::Processing(format!("Failed to write instances file: {}", e))
+                })?;
+
+                let output_path_str = output_path.to_string_lossy();
+                tracing::info!("Saved instances to {}", output_path_str);
+            }
+            StorageLocation::S3 { bucket, key } => {
+                let s3_client = s3_client.ok_or(ProcessorError::InvalidManifest(
+                    "S3 client is required for S3 operations".into(),
+                ))?;
+
+                let instances: Vec<u8> = instances.as_ref().to_vec();
+
+                s3_client
+                    .put_object()
+                    .bucket(bucket)
+                    .key(key.to_str().unwrap())
+                    .body(instances.into())
+                    .send()
+                    .await
+                    .expect("Failed to write to S3");
+            }
+        }
+        Ok(())
+    }
+
+    fn file_name(&self) -> String {
+        match self {
+            StorageLocation::Local(key) | StorageLocation::S3 { key, .. } => key
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+        }
+    }
+
+    pub fn file_stem(&self) -> Option<String> {
+        match self {
+            StorageLocation::Local(key) | StorageLocation::S3 { key, .. } => {
+                key.file_stem().map(|s| s.to_string_lossy().to_string())
+            }
+        }
+    }
+
+    fn parse_s3_uri(uri: &str) -> io::Result<(String, PathBuf)> {
+        if !uri.starts_with("s3://") {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Invalid S3 URI",
+            ));
+        }
+        let without_scheme = &uri[5..]; // Strip "s3://"
+        let parts: Vec<&str> = without_scheme.splitn(2, '/').collect();
+
+        if parts.len() != 2 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "S3 URI must be in the format s3://bucket/key",
+            ));
+        }
+
+        let key_as_path_buf = PathBuf::from(parts[1]);
+
+        Ok((parts[0].to_string(), key_as_path_buf)) // (bucket, key)
+    }
+}
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[allow(clippy::enum_variant_names)]
@@ -93,11 +296,11 @@ impl<'de> Deserialize<'de> for StepType {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ImportStep {
     #[serde(default)]
-    pub path: String,
+    pub path: StorageLocation,
     #[serde(rename = "@type")]
     pub types: Vec<StepType>,
     #[serde(default)]
@@ -132,8 +335,8 @@ pub struct ImportSection {
     pub base_iri: String,
     #[serde(default, rename = "namespaceIris")]
     pub namespace_iris: bool,
-    #[serde(default)]
-    pub path: String,
+    // #[serde(default)]
+    // pub path: String,
     pub sequence: Vec<ImportStep>,
 }
 
@@ -164,7 +367,7 @@ impl ImportSection {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
     #[serde(rename = "@id", default)]
@@ -191,7 +394,8 @@ fn handle_step_deduplication(
     section: &mut ImportSection,
     section_type: &str,
     is_strict: bool,
-) -> Result<(), ProcessorError> {
+) -> ProcessingState {
+    let mut state = ProcessingState::new();
     if let Err(duplicate_steps) = &mut section.deduplicate_steps() {
         let message = format!(
             "Duplicate {} steps found for paths: {:?}",
@@ -199,14 +403,17 @@ fn handle_step_deduplication(
             duplicate_steps
                 .iter()
                 .map(|s| &s.path)
-                .collect::<Vec<&String>>()
+                .collect::<Vec<&StorageLocation>>()
         );
+        let error = ProcessorError::InvalidManifest(message.clone());
         if is_strict {
-            return Err(ProcessorError::InvalidManifest(message));
+            state.add_error_from(error);
+        } else {
+            state.add_warning_from(error);
         }
         tracing::warn!(message);
     };
-    Ok(())
+    state
 }
 
 impl Manifest {
@@ -223,12 +430,13 @@ impl Manifest {
         Ok(manifest)
     }
 
-    pub fn validate(&mut self, is_strict: bool) -> Result<(), ProcessorError> {
+    pub fn validate(&mut self, is_strict: bool) -> Result<ProcessingState, ProcessingState> {
+        let mut state = ProcessingState::new();
         tracing::info!("Validating manifest...");
 
         if self.type_ != "CSVImportManifest" {
             tracing::error!("Invalid manifest type: {}", self.type_);
-            return Err(ProcessorError::InvalidManifest(
+            state.add_error_from(ProcessorError::InvalidManifest(
                 "Manifest must have @type of CSVImportManifest".into(),
             ));
         }
@@ -247,22 +455,30 @@ impl Manifest {
         //     self.instances.as_mut().unwrap()
         // };
 
-        handle_step_deduplication(&mut self.model, "model", is_strict)?;
-        handle_step_deduplication(&mut self.instances, "instance", is_strict)?;
+        state.merge(handle_step_deduplication(
+            &mut self.model,
+            "model",
+            is_strict,
+        ));
+        state.merge(handle_step_deduplication(
+            &mut self.instances,
+            "instance",
+            is_strict,
+        ));
 
-        if let Err(duplicate_steps) = &mut self.instances.deduplicate_steps() {
-            let message = format!(
-                "Duplicate instance steps found for paths: {:?}",
-                duplicate_steps
-                    .iter()
-                    .map(|s| &s.path)
-                    .collect::<Vec<&String>>()
-            );
-            if is_strict {
-                return Err(ProcessorError::InvalidManifest(message));
-            }
-            tracing::warn!(message);
-        };
+        // if let Err(duplicate_steps) = &mut self.instances.deduplicate_steps() {
+        //     let message = format!(
+        //         "Duplicate instance steps found for paths: {:?}",
+        //         duplicate_steps
+        //             .iter()
+        //             .map(|s| &s.path)
+        //             .collect::<Vec<&StorageLocation>>()
+        //     );
+        //     if is_strict {
+        //         return Err(ProcessorError::InvalidManifest(message));
+        //     }
+        //     tracing::warn!(message);
+        // };
 
         for step in &self.model.sequence {
             let model_step_types: Vec<&StepType> = step
@@ -273,14 +489,14 @@ impl Manifest {
 
             if model_step_types.is_empty() {
                 tracing::error!("No valid model step type found: {:?}", step.types);
-                return Err(ProcessorError::InvalidManifest(
+                state.add_error_from(ProcessorError::InvalidManifest(
                     "Model sequence steps must include ModelStep type: BasicVocabularyStep or SubClassVocabularyStep".into(),
                 ));
             }
 
             if model_step_types.len() > 1 {
                 tracing::error!("Multiple model step types found: {:?}", step.types);
-                return Err(ProcessorError::InvalidManifest(
+                state.add_error_from(ProcessorError::InvalidManifest(
                     "Model sequence steps must include only one ModelStep type: BasicVocabularyStep or SubClassVocabularyStep".into(),
                 ));
             }
@@ -288,7 +504,7 @@ impl Manifest {
             if let StepType::ModelStep(ModelStep::SubClassVocabularyStep) = model_step_types[0] {
                 if step.sub_class_of.is_none() {
                     tracing::error!("SubClassVocabularyStep requires subClassOf field");
-                    return Err(ProcessorError::InvalidManifest(
+                    state.add_error_from(ProcessorError::InvalidManifest(
                         "SubClassVocabularyStep requires subClassOf field".into(),
                     ));
                 }
@@ -306,28 +522,28 @@ impl Manifest {
                 tracing::error!(
                     "Cannot have both delimitValuesOn and pivotColumns in the same step"
                 );
-                return Err(ProcessorError::InvalidManifest(
+                state.add_error_from(ProcessorError::InvalidManifest(
                     "Cannot have both delimitValuesOn and pivotColumns in the same step".into(),
                 ));
             }
 
             if !contains_variant!(instance_steps, StepType::InstanceStep(_)) {
                 tracing::error!("Invalid instance step type: {:?}", step.types);
-                return Err(ProcessorError::InvalidManifest(
+                state.add_error_from(ProcessorError::InvalidManifest(
                     "Instance sequence steps must include InstanceStep type".into(),
                 ));
             }
 
             if instance_steps.is_empty() {
                 tracing::error!("No valid instance step type found: {:?}", step.types);
-                return Err(ProcessorError::InvalidManifest(
+                state.add_error_from(ProcessorError::InvalidManifest(
                     "Instance sequence steps must include InstanceStep type: BasicInstanceStep, SubClassInstanceStep, or PropertiesInstanceStep".into(),
                 ));
             }
 
             if instance_steps.len() > 1 {
                 tracing::error!("Multiple instance step types found: {:?}", step.types);
-                return Err(ProcessorError::InvalidManifest(
+                state.add_error_from(ProcessorError::InvalidManifest(
                     "Instance sequence steps must include only one InstanceStep type: BasicInstanceStep, SubClassInstanceStep, or PropertiesInstanceStep".into(),
                 ));
             }
@@ -336,7 +552,7 @@ impl Manifest {
             if let StepType::InstanceStep(InstanceStep::SubClassInstanceStep) = instance_steps[0] {
                 if step.sub_class_property.is_none() {
                     tracing::error!("SubClassInstanceStep requires subClassProperty field");
-                    return Err(ProcessorError::InvalidManifest(
+                    state.add_error_from(ProcessorError::InvalidManifest(
                         "SubClassInstanceStep requires subClassProperty field".into(),
                     ));
                 }
@@ -344,7 +560,10 @@ impl Manifest {
         }
 
         tracing::info!("Manifest validation successful");
-        Ok(())
+        match state.is_ok() {
+            true => Ok(state),
+            false => Err(state),
+        }
     }
 }
 

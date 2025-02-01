@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::error::{ProcessingState, ProcessorError};
-use crate::manifest::ImportStep;
+use crate::manifest::{ImportStep, StorageLocation};
 use crate::types::VocabularyMap;
 use crate::Manifest;
 
@@ -44,37 +44,52 @@ impl InstanceManager {
     pub async fn process_simple_instance(
         &mut self,
         step: &ImportStep,
-        instance_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // instance_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
         self.processor
-            .process_simple_instance(step, instance_path)
+            // .process_simple_instance(step, instance_path)
+            .process_simple_instance(step, s3_client)
             .await
     }
 
     pub async fn process_subclass_instance(
         &mut self,
         step: &ImportStep,
-        instance_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // instance_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
         self.processor
-            .process_subclass_instance(step, instance_path)
+            // .process_subclass_instance(step, instance_path)
+            .process_subclass_instance(step, s3_client)
             .await
     }
 
     pub async fn process_properties_instance(
         &mut self,
         step: &ImportStep,
-        instance_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // instance_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
         self.processor
-            .process_properties_instance(step, instance_path)
+            // .process_properties_instance(step, instance_path)
+            .process_properties_instance(step, s3_client)
             .await
     }
 
-    pub async fn save_instances(&self, output_path: &PathBuf) -> Result<(), ProcessorError> {
+    pub async fn save_instances(
+        &self,
+        output_path: &StorageLocation,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<(), ProcessorError> {
         let vocabulary = self.processor.get_vocabulary();
         self.serializer
-            .save_instances(self.processor.get_instances(), output_path, vocabulary)
+            .save_instances(
+                self.processor.get_instances(),
+                output_path,
+                vocabulary,
+                s3_client,
+            )
             .await
     }
 }

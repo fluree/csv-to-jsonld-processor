@@ -1,18 +1,22 @@
+use anyhow::Result;
+
 use crate::error::{ProcessingOutcome, ProcessingState, ProcessorError};
 use crate::instance::InstanceManager;
-use crate::manifest::{InstanceStep, Manifest, StepType};
+use crate::manifest::{InstanceStep, Manifest, StepType, StorageLocation};
 use crate::vocabulary::VocabularyManager;
 use crate::{contains_variant, ImportStep};
+use std::mem::take;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 pub struct ProcessorBuilder {
     manifest: Manifest,
     base_path: Option<PathBuf>,
-    output_path: Option<PathBuf>,
+    output_path: Option<StorageLocation>,
     is_strict: bool,
-    export_vocab_meta: bool,
-    vocab_meta_path: Option<PathBuf>,
+    export_vocab_meta: Option<StorageLocation>,
+    vocab_meta_path: Option<StorageLocation>,
+    s3_client: Option<aws_sdk_s3::Client>,
 }
 
 impl ProcessorBuilder {
@@ -22,8 +26,9 @@ impl ProcessorBuilder {
             base_path: None,
             output_path: None,
             is_strict: false,
-            export_vocab_meta: false,
+            export_vocab_meta: None,
             vocab_meta_path: None,
+            s3_client: None,
         }
     }
 
@@ -32,9 +37,9 @@ impl ProcessorBuilder {
         self
     }
 
-    pub fn with_output_path<P: Into<PathBuf>>(mut self, output_path: P) -> Self {
-        self.output_path = Some(output_path.into());
-        self
+    pub fn with_output_path(mut self, output_path: String) -> Result<Self> {
+        self.output_path = Some(output_path.try_into()?);
+        Ok(self)
     }
 
     pub fn with_strict(mut self, is_strict: bool) -> Self {
@@ -42,17 +47,22 @@ impl ProcessorBuilder {
         self
     }
 
-    pub fn with_export_vocab_meta(mut self, export_vocab_meta: bool) -> Self {
-        self.export_vocab_meta = export_vocab_meta;
+    pub fn with_export_vocab_meta(mut self, path: Option<StorageLocation>) -> Self {
+        self.export_vocab_meta = path;
         self
     }
 
-    pub fn with_vocab_meta_path<P: Into<PathBuf>>(mut self, vocab_meta_path: P) -> Self {
-        self.vocab_meta_path = Some(vocab_meta_path.into());
+    pub fn with_vocab_meta_path(mut self, vocab_meta_path: String) -> Result<Self> {
+        self.vocab_meta_path = Some(vocab_meta_path.try_into()?);
+        Ok(self)
+    }
+
+    pub fn with_s3_client(mut self, s3_client: aws_sdk_s3::Client) -> Self {
+        self.s3_client = Some(s3_client);
         self
     }
 
-    pub fn build(self) -> Result<Processor, ProcessorError> {
+    pub async fn build(self) -> Result<Processor, ProcessorError> {
         let base_path = match self.base_path {
             Some(path) => path,
             None => {
@@ -64,18 +74,20 @@ impl ProcessorBuilder {
             Some(path) => path,
             None => {
                 tracing::warn!("Output path not set, using current directory");
-                std::env::current_dir()?
+                StorageLocation::Local(std::env::current_dir()?)
             }
         };
 
         Processor::with_base_path(
             self.manifest,
-            base_path,
+            // base_path,
             self.is_strict,
             output_path,
             self.export_vocab_meta,
             self.vocab_meta_path,
+            self.s3_client.as_ref(),
         )
+        .await
     }
 }
 
@@ -83,36 +95,44 @@ pub struct Processor {
     manifest: Arc<Manifest>,
     vocabulary_manager: VocabularyManager,
     instance_manager: InstanceManager,
-    base_path: PathBuf,
-    output_path: PathBuf,
-    export_vocab_meta: bool,
+    // base_path: PathBuf,
+    output_path: StorageLocation,
+    export_vocab_meta: Option<StorageLocation>,
     processing_state: ProcessingState,
+    s3_client: Option<aws_sdk_s3::Client>,
 }
 
 impl Processor {
-    pub fn with_base_path<P: Into<PathBuf>>(
+    pub async fn with_base_path(
         manifest: Manifest,
-        base_path: P,
+        // base_path: P,
         is_strict: bool,
-        output_path: P,
-        export_vocab_meta: bool,
-        vocab_meta_path: Option<PathBuf>,
+        output_path: StorageLocation,
+        export_vocab_meta: Option<StorageLocation>,
+        vocab_meta_path: Option<StorageLocation>,
+        s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<Self, ProcessorError> {
-        let base_path = base_path.into();
-        let output_path = output_path.into();
+        // let base_path = base_path.into();
+        // let output_path = output_path.try_into()?;
         let manifest = Arc::new(manifest);
-        tracing::info!("Creating processor with base path: {:?}", base_path);
-        let vocabulary_manager =
-            VocabularyManager::new(Arc::clone(&manifest), is_strict, vocab_meta_path.clone())?;
+        // tracing::info!("Creating processor with base path: {:?}", base_path);
+        let vocabulary_manager = VocabularyManager::new(
+            Arc::clone(&manifest),
+            is_strict,
+            vocab_meta_path.clone(),
+            s3_client,
+        )
+        .await?;
         let base_iri = vocabulary_manager.processor.get_base_iri().to_string();
         Ok(Self {
             vocabulary_manager,
             instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict, base_iri),
-            base_path,
+            // base_path,
             output_path,
             manifest,
             export_vocab_meta,
             processing_state: ProcessingState::new(),
+            s3_client: s3_client.cloned(),
         })
     }
 
@@ -124,9 +144,9 @@ impl Processor {
         self.manifest.instances.sequence.clone()
     }
 
-    fn resolve_path(&self, relative_path: &str) -> PathBuf {
-        self.base_path.join(relative_path)
-    }
+    // fn resolve_path(&self, relative_path: &str) -> PathBuf {
+    //     self.base_path.join(relative_path)
+    // }
 
     pub async fn process(&mut self) -> Result<ProcessingOutcome, ProcessorError> {
         tracing::info!("Starting processing with manifest: {}", self.manifest.name);
@@ -135,6 +155,7 @@ impl Processor {
         let mut model_sequence = self.model_sequence();
         for step in model_sequence.drain(..) {
             if let Err(e) = self.process_model_step(step).await {
+                tracing::error!("Error processing model step: {}", e);
                 self.processing_state.add_error(
                     format!("Error processing model step: {}", e),
                     Some("model_processing".to_string()),
@@ -197,7 +218,7 @@ impl Processor {
         // Save instance data
         if let Err(e) = self
             .instance_manager
-            .save_instances(&self.output_path)
+            .save_instances(&self.output_path, self.s3_client.as_ref())
             .await
         {
             self.processing_state.add_error(
@@ -210,10 +231,14 @@ impl Processor {
         // Merge instance processing state into main state
         self.processing_state.merge(instance_state);
 
-        if self.export_vocab_meta {
+        if self.export_vocab_meta.is_some() {
             if let Err(e) = self
                 .vocabulary_manager
-                .save_vocabulary_meta(&vocabulary, &self.output_path)
+                .save_vocabulary_meta(
+                    &vocabulary,
+                    self.export_vocab_meta.as_ref().unwrap(),
+                    self.s3_client.as_ref(),
+                )
                 .await
             {
                 self.processing_state.add_error(
@@ -225,7 +250,7 @@ impl Processor {
 
         if let Err(e) = self
             .vocabulary_manager
-            .save_vocabulary(vocabulary, &self.output_path)
+            .save_vocabulary(vocabulary, &self.output_path, self.s3_client.as_ref())
             .await
         {
             self.processing_state.add_error(
@@ -234,7 +259,7 @@ impl Processor {
             );
         }
 
-        let outcome = ProcessingOutcome::from_state(self.processing_state.clone());
+        let outcome = ProcessingOutcome::from_state(take(&mut self.processing_state));
         match &outcome {
             ProcessingOutcome::Success => {
                 tracing::info!("Processing completed successfully");
@@ -258,27 +283,27 @@ impl Processor {
             step.path,
             step.types
         );
-        let model_path = self.resolve_path(&self.manifest.model.path);
+        // let model_path = self.resolve_path(&self.manifest.model.path);
 
         let step_name = step.path.clone();
 
         if contains_variant!(step.types, StepType::ModelStep(_)) {
             tracing::debug!("Processing as base vocabulary data");
-            if let Err(e) = self
+            match self
                 .vocabulary_manager
-                .process_vocabulary(step, model_path.to_str().unwrap())
+                // .process_vocabulary(step, model_path.to_str().unwrap())
+                .process_vocabulary(step, self.s3_client.as_ref())
                 .await
             {
-                if self.vocabulary_manager.processor.is_strict {
-                    return Err(e);
-                } else {
-                    self.processing_state.add_warning(
-                        format!(
-                            "Error in model step {}: {}, continuing with next step",
-                            step_name, e
-                        ),
-                        Some("model_processing".to_string()),
-                    );
+                Ok(state) => {
+                    self.processing_state.merge(state);
+                }
+                Err(e) => {
+                    if self.vocabulary_manager.processor.is_strict {
+                        self.processing_state.add_error_from(e);
+                    } else {
+                        self.processing_state.add_warning_from(e);
+                    }
                 }
             }
         }
@@ -297,7 +322,7 @@ impl Processor {
             step.types
         );
 
-        let instance_path = self.resolve_path(&self.manifest.instances.path);
+        // let instance_path = self.resolve_path(&self.manifest.instances.path);
 
         // Find the instance step type
         let instance_step = match step.types.iter().find_map(|t| match t {
@@ -306,16 +331,14 @@ impl Processor {
         }) {
             Some(step_type) => step_type,
             None => {
-                let msg = "No valid instance step type found".to_string();
+                let error =
+                    ProcessorError::Processing("No valid instance step type found".to_string());
                 if self.instance_manager.processor.is_strict {
-                    return Err(ProcessorError::Processing(msg));
+                    self.processing_state.add_error_from(error);
                 } else {
-                    self.processing_state.add_warning(
-                        format!("{}, skipping step", msg),
-                        Some("instance_processing".to_string()),
-                    );
-                    return Ok(());
+                    self.processing_state.add_warning_from(error);
                 }
+                return Ok(());
             }
         };
 
@@ -324,34 +347,36 @@ impl Processor {
             InstanceStep::BasicInstanceStep | InstanceStep::PicklistStep => {
                 tracing::debug!("Processing as basic instance data");
                 self.instance_manager
-                    .process_simple_instance(step, instance_path.to_str().unwrap())
+                    // .process_simple_instance(step, instance_path.to_str().unwrap())
+                    .process_simple_instance(step, self.s3_client.as_ref())
                     .await
             }
             InstanceStep::SubClassInstanceStep => {
                 tracing::debug!("Processing as subclass instance data");
                 self.instance_manager
-                    .process_subclass_instance(step, instance_path.to_str().unwrap())
+                    // .process_subclass_instance(step, instance_path.to_str().unwrap())
+                    .process_subclass_instance(step, self.s3_client.as_ref())
                     .await
             }
             InstanceStep::PropertiesInstanceStep => {
                 tracing::debug!("Processing as properties instance data");
                 self.instance_manager
-                    .process_properties_instance(step, instance_path.to_str().unwrap())
+                    // .process_properties_instance(step, instance_path.to_str().unwrap())
+                    .process_properties_instance(step, self.s3_client.as_ref())
                     .await
             }
         };
 
-        if let Err(e) = result {
-            if self.instance_manager.processor.is_strict {
-                return Err(e);
-            } else {
-                self.processing_state.add_warning(
-                    format!(
-                        "Error in instance step {}: {}, continuing with next step",
-                        step.path, e
-                    ),
-                    Some("instance_processing".to_string()),
-                );
+        match result {
+            Ok(state) => {
+                self.processing_state.merge(state);
+            }
+            Err(e) => {
+                if self.instance_manager.processor.is_strict {
+                    self.processing_state.add_error_from(e);
+                } else {
+                    self.processing_state.add_warning_from(e);
+                }
             }
         }
 

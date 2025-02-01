@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::error::ProcessorError;
+use crate::manifest::StorageLocation;
 use crate::types::{FlureeDataModel, JsonLdVocabulary, StrictVocabularyMap, VocabularyMap};
 use crate::Manifest;
 
@@ -18,7 +19,8 @@ impl VocabularySerializer {
     pub async fn save_vocabulary(
         &self,
         vocabulary: VocabularyMap,
-        output_path: &PathBuf,
+        output_path: &StorageLocation,
+        s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<(), ProcessorError> {
         let ledger = self.manifest.ledger.clone();
         let label = self.manifest.name.clone();
@@ -48,36 +50,47 @@ impl VocabularySerializer {
             insert,
         };
 
-        let vocab_json = serde_json::to_string_pretty(&vocabulary).map_err(|e| {
-            ProcessorError::Processing(format!("Failed to serialize vocabulary: {}", e))
-        })?;
+        match output_path {
+            StorageLocation::Local(_) => {
+                let vocab_json = serde_json::to_string_pretty(&vocabulary).map_err(|e| {
+                    ProcessorError::Processing(format!("Failed to serialize vocabulary: {}", e))
+                })?;
+                output_path.write_contents(&vocab_json, s3_client).await
+            }
+            StorageLocation::S3 { .. } => {
+                let vocab_json = serde_json::to_vec_pretty(&vocabulary).map_err(|e| {
+                    ProcessorError::Processing(format!("Failed to serialize vocabulary: {}", e))
+                })?;
+                output_path.write_contents(&vocab_json, s3_client).await
+            }
+        }
 
-        let output_dir = if output_path.is_dir() {
-            output_path.clone()
-        } else {
-            // If the path doesn't exist yet, assume it's intended to be a directory
-            Path::new(&output_path).to_path_buf()
-        };
+        // let output_dir = if output_path.is_dir() {
+        //     output_path.clone()
+        // } else {
+        //     // If the path doesn't exist yet, assume it's intended to be a directory
+        //     Path::new(&output_path).to_path_buf()
+        // };
 
-        // Create the full file path: output_dir/vocabulary.jsonld
-        let output_path = output_dir.join("vocabulary.jsonld");
+        // // Create the full file path: output_dir/vocabulary.jsonld
+        // let output_path = output_dir.join("vocabulary.jsonld");
 
-        // Ensure the directory exists
-        fs::create_dir_all(&output_dir).map_err(|e| {
-            ProcessorError::Processing(format!(
-                "Failed to create directory for vocabulary file: {}",
-                e
-            ))
-        })?;
+        // // Ensure the directory exists
+        // fs::create_dir_all(&output_dir).map_err(|e| {
+        //     ProcessorError::Processing(format!(
+        //         "Failed to create directory for vocabulary file: {}",
+        //         e
+        //     ))
+        // })?;
 
-        // Write the JSON to the file
-        fs::write(&output_path, vocab_json).map_err(|e| {
-            ProcessorError::Processing(format!("Failed to write vocabulary file: {}", e))
-        })?;
+        // // Write the JSON to the file
+        // fs::write(&output_path, vocab_json).map_err(|e| {
+        //     ProcessorError::Processing(format!("Failed to write vocabulary file: {}", e))
+        // })?;
 
-        let output_path_str = output_path.to_string_lossy();
-        tracing::info!("Saved vocabulary to {}", output_path_str);
+        // let output_path_str = output_path.to_string_lossy();
+        // tracing::info!("Saved vocabulary to {}", output_path_str);
 
-        Ok(())
+        // Ok(())
     }
 }

@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use csv_to_jsonld::{Manifest, ProcessingOutcome, ProcessorBuilder};
+use csv_to_jsonld::{
+    Manifest, ProcessingOutcome, ProcessingState, ProcessorBuilder, StorageLocation,
+};
 use manifest::{Template, BASIC_MANIFEST, FULL_MANIFEST};
 use std::{fs, path::PathBuf};
 use tracing::{error, info, warn, Level};
@@ -36,9 +38,9 @@ enum Commands {
         #[arg(short, long)]
         verbose: bool,
 
-        /// Export vocabulary metadata to a separate JSON file
-        #[arg(long)]
-        export_vocab_meta: bool,
+        /// Export vocabulary metadata to a file
+        #[arg(long, value_name = "VOCABULARY METADATA OUTPUT PATH")]
+        export_vocab_meta: Option<StorageLocation>,
     },
     /// Generate a manifest template
     GenerateManifest {
@@ -120,7 +122,7 @@ async fn main() -> Result<()> {
             output,
             export_vocab_meta,
             ..
-        } => process_command(manifest, *strict, output, *export_vocab_meta).await,
+        } => process_command(manifest, *strict, output, export_vocab_meta.clone()).await,
     }
 }
 
@@ -128,8 +130,9 @@ async fn process_command(
     manifest_path: &PathBuf,
     strict: bool,
     output: &Option<PathBuf>,
-    export_vocab_meta: bool,
+    export_vocab_meta: Option<StorageLocation>,
 ) -> Result<()> {
+    let mut processing_state = ProcessingState::new();
     if strict {
         info!("Running in strict mode");
     }
@@ -152,9 +155,11 @@ async fn process_command(
         .context("Failed to load manifest. See errors for additional details:")?;
 
     info!("Validating manifest configuration...");
-    manifest
-        .validate(strict)
-        .context("Failed to validate manifest")?;
+    processing_state.merge(
+        manifest
+            .validate(strict)
+            .context("Failed to validate manifest")?,
+    );
 
     info!(
         "Manifest '{}' loaded and validated successfully",
@@ -169,7 +174,7 @@ async fn process_command(
 
     let processor_builder = ProcessorBuilder::from_manifest(manifest)
         .with_base_path(base_path)
-        .with_output_path(output_path)
+        .with_output_path(output_path.to_string_lossy().to_string())?
         .with_strict(strict)
         .with_export_vocab_meta(export_vocab_meta);
 
@@ -178,56 +183,32 @@ async fn process_command(
             "No model files specified in manifest, attempting to load vocabulary metadata."
         );
         let vocab_meta_path = base_path.join("data_model.tmp");
-        processor_builder.with_vocab_meta_path(vocab_meta_path)
+        processor_builder
+            .with_vocab_meta_path(vocab_meta_path.to_string_lossy().to_string())
+            .map_err(|e| {
+                tracing::error!("Failed to load vocabulary metadata: {}", e);
+                processing_state.add_error_from(e);
+                let outcome = ProcessingOutcome::from_state(processing_state.clone());
+                outcome.report().unwrap_err()
+            })?
     } else {
         processor_builder
     };
 
-    let mut processor = processor_builder.build()?;
+    let mut processor = processor_builder.build().await?;
 
-    info!("Beginning CSV processing...");
-    let outcome = processor
+    let proto_outcome = ProcessingOutcome::from_state(processing_state);
+
+    let processing_outcome = processor
         .process()
         .await
         .context("Failed to process CSV files")?;
 
-    match outcome {
-        ProcessingOutcome::Success => {
-            info!("Processing completed successfully");
-        }
-        ProcessingOutcome::SuccessWithWarnings(warnings) => {
-            warn!("Processing completed with warnings:");
-            for warning in warnings {
-                if let Some(source) = warning.source {
-                    warn!("[{}] {}", source, warning.message);
-                } else {
-                    warn!("{}", warning.message);
-                }
-            }
-        }
-        ProcessingOutcome::Failure { errors, warnings } => {
-            if !warnings.is_empty() {
-                warn!("--- Warnings ---");
-                for warning in warnings {
-                    if let Some(source) = warning.source {
-                        warn!("[{}] {}", source, warning.message);
-                    } else {
-                        warn!("{}", warning.message);
-                    }
-                }
-            }
+    info!("Beginning CSV processing...");
+    let final_outcome = proto_outcome.merge_outcome(processing_outcome);
 
-            error!("--- Errors ---");
-            for error in errors {
-                if let Some(source) = error.source {
-                    error!("[{}] {}", source, error.message);
-                } else {
-                    error!("{}", error.message);
-                }
-            }
-            anyhow::bail!("Processing failed with errors");
-        }
-    }
+    final_outcome.report()?;
+
     Ok(())
 }
 

@@ -572,7 +572,8 @@ impl VocabularyColumnMapping {
         &self,
         headers: &StringRecord,
         is_strict: bool,
-    ) -> Result<(), ProcessorError> {
+    ) -> Result<ProcessingState, ProcessorError> {
+        let mut processing_state = ProcessingState::new();
         // Required columns
         let required_columns = vec![&self.class_column];
 
@@ -595,13 +596,14 @@ impl VocabularyColumnMapping {
                 IdOpt::String(s) => {
                     if !headers.iter().any(|h| h == s) {
                         if is_strict {
-                            return Err(ProcessorError::Processing(format!(
+                            processing_state.add_error_from(ProcessorError::Processing(format!(
                                 "Required column '{}' not found in CSV headers",
                                 s
                             )));
                         } else {
-                            tracing::warn!("Required column '{}' not found in CSV headers, some data may be missing", s);
+                            processing_state.add_warning_from(ProcessorError::Processing(format!("Required column '{}' not found in CSV headers, some data may be missing", s)));
                         }
+                        continue;
                     }
                 }
                 IdOpt::ReplacementMap {
@@ -609,16 +611,27 @@ impl VocabularyColumnMapping {
                     replacement_id,
                 } => {
                     if !headers.iter().any(|h| h == original_id) {
-                        return Err(ProcessorError::Processing(format!(
+                        let error = ProcessorError::Processing(format!(
                             "Required column '{}' not found in CSV headers",
                             original_id
-                        )));
+                        ));
+                        if is_strict {
+                            processing_state.add_error_from(error);
+                        } else {
+                            processing_state.add_warning_from(error);
+                        }
+                        continue;
                     }
                     if !headers.iter().any(|h| h == replacement_id) {
-                        return Err(ProcessorError::Processing(format!(
+                        let error = ProcessorError::Processing(format!(
                             "Required column '{}' not found in CSV headers",
                             replacement_id
-                        )));
+                        ));
+                        if is_strict {
+                            processing_state.add_error_from(error);
+                        } else {
+                            processing_state.add_warning_from(error);
+                        }
                     }
                 }
             }
@@ -629,10 +642,14 @@ impl VocabularyColumnMapping {
             for column in optional_columns.iter().flatten() {
                 if !headers.iter().any(|h| h == *column) {
                     tracing::warn!("Optional column '{}' not found in CSV headers", column);
+                    processing_state.add_warning_from(ProcessorError::Processing(format!(
+                        "Optional column '{}' not found in CSV headers",
+                        column
+                    )));
                 }
             }
         }
 
-        Ok(())
+        Ok(processing_state)
     }
 }

@@ -3,8 +3,10 @@ use crate::error::ProcessorError;
 use crate::manifest::{ImportStep, InstanceStep, StepType};
 use crate::types::{IdOpt, JsonLdInstance, PropertyDatatype};
 use crate::utils::{to_kebab_case, to_pascal_case};
+use crate::ProcessingState;
 use serde_json::Map;
 use std::collections::hash_map::Entry;
+use std::mem::take;
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -12,8 +14,9 @@ impl InstanceProcessor {
     pub async fn process_simple_instance(
         &mut self,
         step: &ImportStep,
-        instance_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // instance_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
         let is_picklist_step = step
             .types
             .iter()
@@ -22,8 +25,7 @@ impl InstanceProcessor {
         let mut class_type = step.instance_type.clone();
 
         if class_type.is_empty() {
-            let file_path = PathBuf::from(&step.path);
-            let file_name = file_path.file_stem().unwrap().to_str().unwrap();
+            let file_name = &step.path.file_stem().unwrap();
             class_type = to_pascal_case(file_name);
             self.processing_state.add_warning(
                 format!("No explicit instance type provided for CSV at path: {}. Using CSV name as default: {}", &step.path, &class_type),
@@ -48,15 +50,19 @@ impl InstanceProcessor {
             ))
         })?.clone();
 
-        let file_path = PathBuf::from(instance_path).join(&step.path);
+        // let file_path = PathBuf::from(instance_path).join(&step.path);
 
-        let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
-            ProcessorError::Processing(format!(
-                "Failed to read CSV @ {}: {}",
-                &file_path.to_string_lossy(),
-                e
-            ))
-        })?;
+        let contents_results = step.path.read_contents(s3_client).await?;
+
+        let mut rdr = csv::Reader::from_reader(contents_results.as_slice());
+
+        // let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
+        //     ProcessorError::Processing(format!(
+        //         "Failed to read CSV @ {}: {}",
+        //         &file_path.to_string_lossy(),
+        //         e
+        //     ))
+        // })?;
 
         let headers: Vec<String> = rdr
             .headers()
@@ -100,14 +106,13 @@ impl InstanceProcessor {
             let record = match result {
                 Ok(record) => record,
                 Err(e) => {
-                    let msg = format!("Failed to read CSV record: {}", e);
+                    let error =
+                        ProcessorError::Processing(format!("Failed to read CSV record: {}", e));
                     if self.is_strict {
-                        return Err(ProcessorError::Processing(msg));
+                        self.processing_state.add_error_from(error);
+                        continue;
                     } else {
-                        self.processing_state.add_warning(
-                            format!("{}, skipping row", msg),
-                            Some("csv_processing".to_string()),
-                        );
+                        self.processing_state.add_warning_from(error);
                         continue;
                     }
                 }
@@ -116,17 +121,15 @@ impl InstanceProcessor {
             let id = match record.get(id_column_index) {
                 Some(id) if !id.is_empty() => id.to_string(),
                 _ => {
-                    let msg = format!(
+                    let error = ProcessorError::Processing(format!(
                         "Missing or empty identifier value at row {}",
                         result_row_num + 1
-                    );
+                    ));
                     if self.is_strict {
-                        return Err(ProcessorError::Processing(msg));
+                        self.processing_state.add_error_from(error);
+                        continue;
                     } else {
-                        self.processing_state.add_warning(
-                            format!("{}, skipping row", msg),
-                            Some("instance_processing".to_string()),
-                        );
+                        self.processing_state.add_warning_from(error);
                         continue;
                     }
                 }
@@ -147,13 +150,12 @@ impl InstanceProcessor {
                     record.len(),
                     headers.len()
                 );
+                let error = ProcessorError::Processing(msg);
                 if self.is_strict {
-                    return Err(ProcessorError::Processing(msg));
+                    self.processing_state.add_error_from(error);
+                    continue;
                 } else {
-                    self.processing_state.add_warning(
-                        format!("{}, skipping row", msg),
-                        Some("csv_processing".to_string()),
-                    );
+                    self.processing_state.add_warning_from(error);
                     continue;
                 }
             }
@@ -187,12 +189,24 @@ impl InstanceProcessor {
                             }
 
                             for value in vec_value {
-                                final_values.push(self.process_value(
+                                let processed_value = match self.process_value(
                                     value,
                                     &header.datatype,
                                     &header.name,
                                     result_row_num,
-                                )?);
+                                ) {
+                                    Ok(value) => value,
+                                    Err(e) => {
+                                        if self.is_strict {
+                                            self.processing_state.add_error_from(e);
+                                            continue;
+                                        } else {
+                                            self.processing_state.add_warning_from(e);
+                                            continue;
+                                        }
+                                    }
+                                };
+                                final_values.push(processed_value);
                             }
 
                             if let Some(pivot_column_match) = is_pivot_header {
@@ -222,17 +236,10 @@ impl InstanceProcessor {
                                 match self.instances.entry(id.to_string()) {
                                     Entry::Occupied(mut entry) => {
                                         if let Err(e) = entry.get_mut().update_with(new_instance) {
-                                            let msg = format!(
-                                                "Failed to update pivot instance {}: {}",
-                                                id, e
-                                            );
                                             if self.is_strict {
-                                                return Err(ProcessorError::Processing(msg));
+                                                self.processing_state.add_error_from(e);
                                             } else {
-                                                self.processing_state.add_warning(
-                                                    format!("{}, using original values", msg),
-                                                    Some("instance_processing".to_string()),
-                                                );
+                                                self.processing_state.add_warning_from(e);
                                             }
                                         }
                                     }
@@ -262,12 +269,12 @@ impl InstanceProcessor {
             if let Err(e) = self.update_or_insert_instance(instance.clone()) {
                 let msg = format!("Failed to update/insert instance {}: {}", instance.id, e);
                 if self.is_strict {
-                    return Err(ProcessorError::Processing(msg));
+                    self.processing_state
+                        .add_error_from(ProcessorError::Processing(msg));
+                    continue;
                 } else {
-                    self.processing_state.add_warning(
-                        format!("{}, skipping instance", msg),
-                        Some("instance_processing".to_string()),
-                    );
+                    self.processing_state
+                        .add_warning_from(ProcessorError::Processing(msg));
                     continue;
                 }
             }
@@ -289,23 +296,28 @@ impl InstanceProcessor {
                         final_instance_id, e
                     );
                     if self.is_strict {
-                        return Err(ProcessorError::Processing(msg));
+                        self.processing_state
+                            .add_error_from(ProcessorError::Processing(msg));
+                        continue;
                     } else {
                         self.processing_state
-                            .add_warning(msg, Some("picklist_processing".to_string()));
+                            .add_warning_from(ProcessorError::Processing(msg));
+                        continue;
                     }
                 }
             }
         }
 
-        Ok(())
+        Ok(take(&mut self.processing_state))
     }
 
     pub async fn process_subclass_instance(
         &mut self,
         step: &ImportStep,
-        instance_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // instance_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
+        // TODO: Handle ProcessingState here the way we did for process_simple_instance
         // Get the parent class type from the manifest
         let parent_class_type = step.instance_type.clone();
 
@@ -341,16 +353,20 @@ impl InstanceProcessor {
             })?
             .clone();
 
-        let file_path = PathBuf::from(instance_path).join(&step.path);
-        tracing::debug!("Reading instance data from {:?}", file_path);
+        // let file_path = PathBuf::from(instance_path).join(&step.path);
+        tracing::debug!("Reading instance data from {:?}", &step.path);
 
-        let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
-            ProcessorError::Processing(format!(
-                "Failed to read CSV @ {}: {}",
-                &file_path.to_string_lossy(),
-                e
-            ))
-        })?;
+        let contents_result = step.path.read_contents(s3_client).await?;
+
+        let mut rdr = csv::Reader::from_reader(contents_result.as_slice());
+
+        // let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
+        //     ProcessorError::Processing(format!(
+        //         "Failed to read CSV @ {}: {}",
+        //         &file_path.to_string_lossy(),
+        //         e
+        //     ))
+        // })?;
 
         // Read headers and find important column indices
         let headers = rdr
@@ -530,14 +546,16 @@ impl InstanceProcessor {
             }
         }
 
-        Ok(())
+        Ok(take(&mut self.processing_state))
     }
 
     pub async fn process_properties_instance(
         &mut self,
         step: &ImportStep,
-        instance_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // instance_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
+        // TODO: Handle ProcessingState here the way we did for process_simple_instance
         let class_type = step.instance_type.clone();
 
         let vocab = self.vocabulary.as_ref().ok_or_else(|| {
@@ -578,16 +596,20 @@ impl InstanceProcessor {
             .map(|o| o.column.as_str())
             .unwrap_or("Property Value");
 
-        let file_path = PathBuf::from(instance_path).join(&step.path);
-        tracing::debug!("Reading instance data from {:?}", file_path);
+        // let file_path = PathBuf::from(instance_path).join(&step.path);
+        tracing::debug!("Reading instance data from {:?}", step.path);
 
-        let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
-            ProcessorError::Processing(format!(
-                "Failed to read CSV @ {}: {}",
-                &file_path.to_string_lossy(),
-                e
-            ))
-        })?;
+        let contents_result = step.path.read_contents(s3_client).await?;
+
+        let mut rdr = csv::Reader::from_reader(contents_result.as_slice());
+
+        // let mut rdr = csv::Reader::from_path(&file_path).map_err(|e| {
+        //     ProcessorError::Processing(format!(
+        //         "Failed to read CSV @ {}: {}",
+        //         &file_path.to_string_lossy(),
+        //         e
+        //     ))
+        // })?;
 
         // Read headers and find required columns
         let headers = rdr.headers().map_err(|e| {
@@ -765,7 +787,7 @@ impl InstanceProcessor {
                 });
         }
 
-        Ok(())
+        Ok(take(&mut self.processing_state))
     }
 
     pub(crate) fn update_or_insert_instance(

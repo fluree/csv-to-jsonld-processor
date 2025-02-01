@@ -1,5 +1,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
+use std::mem::take;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use super::mapping::{MappingConfig, RowValues, VocabularyColumnMapping};
 use crate::error::{ProcessingState, ProcessorError};
-use crate::manifest::{ImportStep, ModelStep, StepType};
+use crate::manifest::{ImportStep, ModelStep, StepType, StorageLocation};
 use crate::types::{
     IdOpt, OnEntity, PropertyDatatype, StrictIdOpt, StrictVocabularyMap, VocabularyMap,
     VocabularyTerm,
@@ -20,7 +21,7 @@ pub struct VocabularyProcessor {
     pub vocabulary: VocabularyMap,
     class_properties: HashMap<IdOpt, Vec<String>>,
     pub(crate) is_strict: bool,
-    ignore: HashMap<String, Vec<String>>,
+    ignore: HashMap<StorageLocation, Vec<String>>,
     base_iri: String,
     namespace_iris: bool,
     processing_state: ProcessingState,
@@ -30,7 +31,7 @@ pub struct VocabularyProcessor {
 pub struct VocabularyProcessorMetadata {
     pub vocabulary: StrictVocabularyMap,
     pub class_properties: Vec<(StrictIdOpt, Vec<String>)>,
-    ignore: HashMap<String, Vec<String>>,
+    ignore: HashMap<StorageLocation, Vec<String>>,
     base_iri: String,
     namespace_iris: bool,
 }
@@ -54,11 +55,15 @@ impl From<&VocabularyProcessor> for VocabularyProcessorMetadata {
 }
 
 impl VocabularyProcessorMetadata {
-    pub fn from_file(path: &PathBuf) -> Result<Self, ProcessorError> {
+    pub async fn from_file(
+        path: &StorageLocation,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<Self, ProcessorError> {
         tracing::debug!("Loading vocabulary meta file: {:#?}", path);
-        let bytes = std::fs::read(path).map_err(|e| {
-            ProcessorError::Processing(format!("Failed to read vocabulary meta file: {}", e))
-        })?;
+        let bytes = path.read_contents(s3_client).await?;
+        // let bytes = std::fs::read(path).map_err(|e| {
+        //     ProcessorError::Processing(format!("Failed to read vocabulary meta file: {}", e))
+        // })?;
         serde_json::from_slice(&bytes).map_err(|e| {
             ProcessorError::Processing(format!(
                 "Failed to deserialize vocabulary meta file: {:#?}",
@@ -98,12 +103,14 @@ impl VocabularyProcessor {
         &self.base_iri
     }
 
-    pub fn new_from_vocab_meta(
+    pub async fn new_from_vocab_meta(
         manifest: Arc<Manifest>,
-        path: &PathBuf,
+        path: &StorageLocation,
         is_strict: bool,
+        s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<Self, ProcessorError> {
-        let vocabulary_processor_metadata = VocabularyProcessorMetadata::from_file(path)?;
+        let vocabulary_processor_metadata =
+            VocabularyProcessorMetadata::from_file(path, s3_client).await?;
         let class_properties = vocabulary_processor_metadata
             .class_properties
             .into_iter()
@@ -121,7 +128,8 @@ impl VocabularyProcessor {
         })
     }
 
-    pub fn from_headers(
+    pub fn mapping_config_from_headers(
+        &mut self,
         headers: &csv::StringRecord,
         mut step: ImportStep,
         is_strict: bool,
@@ -205,9 +213,11 @@ impl VocabularyProcessor {
         }
 
         // Validate headers
-        mapping
+        let column_mapping_process_state = mapping
             .column_mapping
             .validate_headers(headers, is_strict)?;
+
+        self.processing_state.merge(column_mapping_process_state);
 
         Ok(mapping)
     }
@@ -215,31 +225,42 @@ impl VocabularyProcessor {
     pub async fn process_vocabulary(
         &mut self,
         step: ImportStep,
-        model_path: &str,
-    ) -> Result<(), ProcessorError> {
+        // model_path: &str,
+        s3_client: Option<&aws_sdk_s3::Client>,
+    ) -> Result<ProcessingState, ProcessorError> {
         let step_path = &step.path.clone();
-        let file_path = PathBuf::from(model_path).join(step_path);
-        tracing::debug!("Reading vocabulary data from {:?}", file_path);
+        // let file_path = PathBuf::from(model_path).join(step_path);
+        // let file_path = PathBuf::from(model_path).join(step_path);
+        tracing::debug!("Reading vocabulary data from {:?}", step_path);
 
-        let mut rdr: csv::Reader<std::fs::File> =
-            csv::Reader::from_path(&file_path).map_err(|e| {
-                ProcessorError::Processing(format!(
-                    "Failed to read CSV @ {}: {}",
-                    &file_path.to_string_lossy(),
-                    e
-                ))
-            })?;
+        let contents_result = step_path.read_contents(s3_client).await.map_err(|e| {
+            ProcessorError::Processing(format!("Failed to read CSV @ {}: {}", &step_path, e))
+        })?;
+
+        let mut rdr = csv::Reader::from_reader(contents_result.as_slice());
+
+        // let mut rdr: csv::Reader<std::fs::File> =
+        //     csv::Reader::from_path(&file_path).map_err(|e| {
+        //         ProcessorError::Processing(format!(
+        //             "Failed to read CSV @ {}: {}",
+        //             &file_path.to_string_lossy(),
+        //             e
+        //         ))
+        //     })?;
 
         // Get headers and build column mapping
         let headers = rdr.headers().map_err(|e| {
-            ProcessorError::Processing(format!("Failed to read CSV headers: {}", e))
+            ProcessorError::Processing(format!(
+                "Failed to read CSV headers in file, {}: {}",
+                &step_path, e
+            ))
         })?;
 
         tracing::debug!("CSV headers: {:?}", headers);
 
         let sub_class_of = step.sub_class_of.clone();
 
-        let mut mapping = Self::from_headers(headers, step, self.is_strict)?;
+        let mut mapping = self.mapping_config_from_headers(headers, step, self.is_strict)?;
 
         let ignorable_headers = self.ignore.get(step_path);
 
@@ -260,13 +281,15 @@ impl VocabularyProcessor {
         tracing::debug!("Filtered headers: {:?}", headers);
 
         // Process each row
-        for result in rdr.records() {
+        for (row, result) in rdr.records().enumerate() {
             let record = match result {
                 Ok(record) => record,
                 Err(e) => {
-                    let msg = format!("Failed to read CSV record: {}", e);
+                    let msg = format!("Failed to read CSV record in row {}: {}", row + 1, e);
                     if self.is_strict {
-                        return Err(ProcessorError::Processing(msg));
+                        self.processing_state
+                            .add_error_from(ProcessorError::Processing(msg));
+                        continue;
                     } else {
                         self.processing_state.add_warning(
                             format!("{}, skipping row", msg),
@@ -277,16 +300,46 @@ impl VocabularyProcessor {
                 }
             };
 
-            let row_values = mapping.extract_values(&record, &headers)?;
+            let row_values = match mapping.extract_values(&record, &headers) {
+                Ok(row_values) => row_values,
+                Err(e) => {
+                    if self.is_strict {
+                        self.processing_state.add_error_from(e);
+                        continue;
+                    } else {
+                        self.processing_state.add_warning_from(e);
+                        continue;
+                    }
+                }
+            };
 
             // tracing::debug!("Row values: {:#?}", row_values);
 
-            self.process_class_term(&row_values, sub_class_of.clone())?;
+            match self.process_class_term(&row_values, sub_class_of.clone()) {
+                Ok(_) => (),
+                Err(e) => {
+                    if self.is_strict {
+                        self.processing_state.add_error_from(e);
+                        continue;
+                    } else {
+                        self.processing_state.add_warning_from(e);
+                        continue;
+                    }
+                }
+            }
             if !matches!(
                 &mapping.type_,
                 StepType::ModelStep(ModelStep::SubClassVocabularyStep)
             ) {
-                self.process_property_term(&row_values)?;
+                if let Err(e) = self.process_property_term(&row_values) {
+                    if self.is_strict {
+                        self.processing_state.add_error_from(e);
+                        continue;
+                    } else {
+                        self.processing_state.add_warning_from(e);
+                        continue;
+                    }
+                }
             }
         }
 
@@ -319,7 +372,15 @@ impl VocabularyProcessor {
             .collect::<HashSet<IdOpt>>();
 
         for class_id in picklist_classes {
-            self.handle_add_rdfs_label_property(&class_id)?;
+            if let Err(e) = self.handle_add_rdfs_label_property(&class_id) {
+                if self.is_strict {
+                    self.processing_state.add_error_from(e);
+                    continue;
+                } else {
+                    self.processing_state.add_warning_from(e);
+                    continue;
+                }
+            }
         }
 
         // Update class terms with their properties
@@ -336,7 +397,7 @@ impl VocabularyProcessor {
             }
         }
 
-        Ok(())
+        Ok(take(&mut self.processing_state))
     }
 
     fn process_class_term(

@@ -11,9 +11,11 @@ mod types;
 mod utils;
 mod vocabulary;
 
-pub use error::{ProcessingOutcome, ProcessorError};
+pub use error::{ProcessingOutcome, ProcessingState, ProcessorError};
 pub use instance::{InstanceManager, JsonLdInstance, JsonLdInstances};
-pub use manifest::{ImportSection, ImportStep, Manifest};
+pub use manifest::{
+    ImportSection, ImportStep, InstanceStep, Manifest, ModelStep, StepType, StorageLocation,
+};
 pub use processor::{Processor, ProcessorBuilder};
 pub use types::{ColumnOverride, JsonLdContext, JsonLdVocabulary, VocabularyMap, VocabularyTerm};
 
@@ -46,7 +48,7 @@ mod tests {
         info!("Validating manifest");
         match manifest.validate(false) {
             Ok(_) => info!("Manifest validation successful"),
-            Err(e) => error!("Manifest validation failed: {}", e),
+            Err(e) => error!("Manifest validation failed: {:#?}", e),
         }
         assert!(manifest.validate(false).is_ok());
     }
