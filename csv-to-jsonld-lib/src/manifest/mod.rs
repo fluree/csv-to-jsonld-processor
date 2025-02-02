@@ -361,6 +361,16 @@ pub struct ImportStep {
     pub map_to_label: Option<String>,
 }
 
+impl ImportStep {
+    pub fn id(&self) -> String {
+        if let Some(sheet) = &self.sheet {
+            sheet.clone()
+        } else {
+            self.path.file_stem().unwrap()
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ImportSection {
@@ -381,7 +391,11 @@ impl ImportSection {
         let unique_steps: Vec<ImportStep> = sequence
             .into_iter()
             .filter_map(|step| {
-                if !seen_step_paths.insert(step.path.clone()) {
+                let step_or_sheet = match &step.sheet {
+                    Some(sheet) => sheet.clone(),
+                    None => step.path.clone().to_string(),
+                };
+                if !seen_step_paths.insert(step_or_sheet) {
                     duplicate_steps.push(step);
                     None
                 } else {
@@ -428,13 +442,19 @@ fn handle_step_deduplication(
 ) -> ProcessingState {
     let mut state = ProcessingState::new();
     if let Err(duplicate_steps) = &mut section.deduplicate_steps() {
+        let duplicate_sheets_or_paths = duplicate_steps
+            .iter()
+            .map(|s| {
+                if let Some(sheet) = &s.sheet {
+                    sheet.clone()
+                } else {
+                    s.path.clone().to_string()
+                }
+            })
+            .collect::<Vec<_>>();
         let message = format!(
-            "Duplicate {} steps found for paths: {:?}",
-            section_type,
-            duplicate_steps
-                .iter()
-                .map(|s| &s.path)
-                .collect::<Vec<&StorageLocation>>()
+            "Duplicate {} steps found for sheets or paths: {:?}",
+            section_type, duplicate_sheets_or_paths
         );
         let error = ProcessorError::InvalidManifest(message.clone());
         if is_strict {
@@ -590,7 +610,7 @@ impl Manifest {
         }
     }
 
-    pub fn is_model_file(headers: &StringRecord) -> bool {
+    pub fn is_model_file(headers: Vec<&str>) -> bool {
         // if every single header is contained in the list: ["Class ID", "Class Name", "Property ID", "Property Name", "Property Description", "Type", "Class Range"]
         let model_headers = [
             "Class ID",

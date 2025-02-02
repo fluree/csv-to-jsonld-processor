@@ -13,9 +13,11 @@ mod utils;
 mod vocabulary;
 
 pub use error::{ProcessingMessage, ProcessingOutcome, ProcessingState, ProcessorError};
+pub use excel::ExcelReader;
 pub use instance::{InstanceManager, JsonLdInstance, JsonLdInstances};
 pub use manifest::{
-    ImportSection, ImportStep, InstanceStep, Manifest, ModelStep, StepType, StorageLocation,
+    ImportSection, ImportStep, InstanceStep, Manifest, ModelStep, ReadSeek, StepType,
+    StorageLocation,
 };
 pub use processor::{Processor, ProcessorBuilder};
 pub use types::{ColumnOverride, JsonLdContext, JsonLdVocabulary, VocabularyMap, VocabularyTerm};

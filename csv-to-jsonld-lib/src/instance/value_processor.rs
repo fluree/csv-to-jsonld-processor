@@ -1,7 +1,7 @@
 use super::types::InstanceProcessor;
 use crate::error::ProcessorError;
 use crate::types::{IdOpt, PropertyDatatype};
-use crate::utils::{expand_iri_with_base, to_kebab_case};
+use crate::utils::{expand_iri_with_base, to_kebab_case, DATE_FORMATS};
 use serde_json::Value as JsonValue;
 
 impl InstanceProcessor {
@@ -16,45 +16,55 @@ impl InstanceProcessor {
             PropertyDatatype::ID => Ok(JsonValue::String(value.to_string())),
             PropertyDatatype::Date => {
                 let trimmed_value = value.trim();
-                let date_result = crate::utils::DATE_FORMATS.iter().find_map(|fmt| {
-                    // First try exact parsing
-                    if let Ok(date) = chrono::NaiveDate::parse_from_str(trimmed_value, fmt) {
-                        return Some(date);
-                    }
-
-                    // Handle partial dates
-                    match *fmt {
-                        // Year only - default to Jan 1
-                        "%Y" => trimmed_value
-                            .parse::<i32>()
-                            .ok()
-                            .and_then(|year| chrono::NaiveDate::from_ymd_opt(year, 1, 1)),
-                        // Year-month formats - default to 1st of month
-                        "%Y-%m" | "%Y/%m" | "%b %Y" | "%B %Y" | "%m-%Y" => {
-                            if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
-                                &format!("{}-01", trimmed_value.replace("/", "-")),
-                                "%Y-%m-%d",
-                            ) {
-                                Some(parsed)
-                            } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
-                                &format!("01 {}", trimmed_value),
-                                "%d %B %Y",
-                            ) {
-                                Some(parsed)
-                            } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
-                                &format!("01 {}", trimmed_value),
-                                "%d %b %Y",
-                            ) {
-                                Some(parsed)
-                            } else {
-                                None
-                            }
+                tracing::info!("Trimmed date value: {}", trimmed_value);
+                let date_result = DATE_FORMATS
+                    .iter()
+                    .find_map(|fmt| {
+                        // First try exact parsing
+                        if let Ok(date) = chrono::NaiveDate::parse_from_str(trimmed_value, fmt) {
+                            return Some(date);
                         }
-                        _ => None,
-                    }
-                });
 
-                if let Some(date) = date_result {
+                        // Handle partial dates
+                        match *fmt {
+                            // Year only - default to Jan 1
+                            "%Y" => {
+                                trimmed_value.parse::<i32>().ok().and_then(|year| {
+                                    chrono::NaiveDate::from_ymd_opt(
+                                        year, 1, // January
+                                        1, // 1st
+                                    )
+                                })
+                            }
+                            // Year-month formats - default to 1st of month
+                            "%Y-%m" | "%Y/%m" | "%b %Y" | "%B %Y" | "%m-%Y" => {
+                                if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
+                                    &format!("{}-01", trimmed_value.replace("/", "-")),
+                                    "%Y-%m-%d",
+                                ) {
+                                    Some(parsed)
+                                } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
+                                    &format!("01 {}", trimmed_value),
+                                    "%d %B %Y",
+                                ) {
+                                    Some(parsed)
+                                } else if let Ok(parsed) = chrono::NaiveDate::parse_from_str(
+                                    &format!("01 {}", trimmed_value),
+                                    "%d %b %Y",
+                                ) {
+                                    Some(parsed)
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        }
+                    })
+                    .ok_or_else(|| {
+                        ProcessorError::Processing(format!("Failed to parse date {:#?}", value))
+                    });
+
+                if let Ok(date) = date_result {
                     Ok(JsonValue::String(date.format("%Y-%m-%d").to_string()))
                 } else {
                     let msg = format!("Failed to parse date {:#?}", value);
@@ -177,12 +187,24 @@ impl InstanceProcessor {
                     value
                 ))
             })?;
-            let enum_picklist = class_match_class_definition.one_of.clone().ok_or_else(|| {
-                ProcessorError::Processing(format!(
+            let enum_picklist = match class_match_class_definition.one_of.clone() {
+                Some(one_of) => one_of,
+                None => {
+                    let error = ProcessorError::Processing(format!(
                     "Class match found ({}) for picklist value ({}) on header ({}), but no picklist enums defined on class.",
                     class_match, value, header
-                ))
-            })?;
+                ));
+                    if self.is_strict {
+                        return Err(error);
+                    } else {
+                        self.processing_state.add_warning(
+                            error.to_string(),
+                            Some("picklist_validation".to_string()),
+                        );
+                        vec![]
+                    }
+                }
+            };
             let iri = expand_iri_with_base(
                 &self.instances_base_iri,
                 &format!(

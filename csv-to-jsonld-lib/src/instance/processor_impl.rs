@@ -23,11 +23,13 @@ impl InstanceProcessor {
 
         let mut class_type = step.instance_type.clone();
 
+        let sheet_or_path_name = step.id();
+
         if class_type.is_empty() {
-            let file_name = &step.path.file_stem().unwrap();
+            let file_name = &sheet_or_path_name;
             class_type = to_pascal_case(file_name);
             self.processing_state.add_warning(
-                format!("No explicit instance type provided for CSV at path: {}. Using CSV name as default: {}", &step.path, &class_type),
+                format!("No explicit instance type provided for CSV at path: {}. Using CSV/sheet name as default: {}", &sheet_or_path_name, &class_type),
                 Some("instance_processing".to_string()),
             );
         }
@@ -74,6 +76,18 @@ impl InstanceProcessor {
             .iter()
             .map(|h| h.to_string())
             .collect();
+
+        // TODO: This is bad... we need to think about a scenario like an excel spreadsheet where we can't know if each sheet is a model file or instance file
+        // Right now, we're assuming that if the file is an excel file, this is the only scenario where we may have to guess if the file is a model file or instance file
+        if self.manifest.excel_file.is_some()
+            && Manifest::is_model_file(headers.iter().map(|h| h.as_str()).collect())
+        {
+            tracing::warn!(
+                "CSV or sheet {} does not appear to be an instance file, skipping",
+                sheet_or_path_name
+            );
+            return Ok(take(&mut self.processing_state));
+        }
 
         if let Some(pivot_columns) = &step.pivot_columns {
             self.validate_pivot_columns(pivot_columns.iter().collect(), &class_type)?;
@@ -324,6 +338,8 @@ impl InstanceProcessor {
         // Get the parent class type from the manifest
         let parent_class_type = step.instance_type.clone();
 
+        let sheet_or_path_name = step.id();
+
         let subclass_property = step.sub_class_property.as_ref().ok_or_else(|| {
             ProcessorError::Processing(
                 "SubClassInstanceStep requires subClassProperty field".into(),
@@ -353,7 +369,7 @@ impl InstanceProcessor {
             })?
             .clone();
 
-        tracing::debug!("Reading instance data from {:?}", &step.path);
+        tracing::debug!("Reading instance data from {:?}", &sheet_or_path_name);
 
         let csv_bytes = if let Some(sheet_name) = &step.sheet {
             // Excel processing
@@ -384,8 +400,8 @@ impl InstanceProcessor {
             .position(|h| h == identifier_label)
             .ok_or_else(|| {
                 ProcessorError::Processing(format!(
-                    "Identifier column '{}' not found in headers of CSV ({}): {:#?}",
-                    identifier_label, step.path, headers
+                    "Identifier column '{}' not found in headers of CSV/sheet ({}): {:#?}",
+                    identifier_label, &sheet_or_path_name, headers
                 ))
             })?;
 
@@ -557,6 +573,8 @@ impl InstanceProcessor {
         // TODO: Handle ProcessingState here the way we did for process_simple_instance
         let class_type = step.instance_type.clone();
 
+        let sheet_or_path_name = step.id();
+
         let vocab = self.vocabulary.as_ref().ok_or_else(|| {
             ProcessorError::Processing("Vocabulary must be set before processing instances".into())
         })?;
@@ -592,7 +610,7 @@ impl InstanceProcessor {
             .map(|o| o.column.as_str())
             .unwrap_or("Property Value");
 
-        tracing::debug!("Reading instance data from {:?}", step.path);
+        tracing::debug!("Reading instance data from {:?}", &sheet_or_path_name);
 
         let csv_bytes = if let Some(sheet_name) = &step.sheet {
             // Excel processing
@@ -617,26 +635,13 @@ impl InstanceProcessor {
             ProcessorError::Processing(format!("Failed to read CSV headers: {}", e))
         })?;
 
-        // TODO: This is bad... we need to think about a scenario like an excel spreadsheet where we can't know if each sheet is a model file or instance file
-        // Right now, we're assuming that if the file is an excel file, this is the only scenario where we may have to guess if the file is a model file or instance file
-        if self.manifest.excel_file.is_some()
-            && self.manifest.instances.sequence.len() == self.manifest.model.sequence.len()
-            && Manifest::is_model_file(headers)
-        {
-            tracing::warn!(
-                "CSV or sheet {} does not appear to be an instance file, skipping",
-                step.path
-            );
-            return Ok(take(&mut self.processing_state));
-        }
-
         let id_column_index = headers
             .iter()
             .position(|h| h == identifier_label)
             .ok_or_else(|| {
                 ProcessorError::Processing(format!(
-                    "Identifier column '{}' not found in headers of CSV ({}): {:#?}",
-                    identifier_label, step.path, headers
+                    "Identifier column '{}' not found in headers of CSV/sheet ({}): {:#?}",
+                    identifier_label, sheet_or_path_name, headers
                 ))
             })?;
 

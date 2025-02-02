@@ -22,7 +22,7 @@ pub struct VocabularyProcessor {
     pub vocabulary: VocabularyMap,
     class_properties: HashMap<IdOpt, Vec<String>>,
     pub(crate) is_strict: bool,
-    ignore: HashMap<StorageLocation, Vec<String>>,
+    ignore: HashMap<String, Vec<String>>,
     base_iri: String,
     namespace_iris: bool,
     processing_state: ProcessingState,
@@ -32,7 +32,7 @@ pub struct VocabularyProcessor {
 pub struct VocabularyProcessorMetadata {
     pub vocabulary: StrictVocabularyMap,
     pub class_properties: Vec<(StrictIdOpt, Vec<String>)>,
-    ignore: HashMap<StorageLocation, Vec<String>>,
+    ignore: HashMap<String, Vec<String>>,
     base_iri: String,
     namespace_iris: bool,
 }
@@ -81,7 +81,7 @@ impl VocabularyProcessor {
             .iter()
             .fold(HashMap::new(), |mut acc, step| {
                 if let Some(ignores) = &step.ignore {
-                    acc.insert(step.path.clone(), ignores.clone());
+                    acc.insert(step.id(), ignores.clone());
                 }
                 acc
             });
@@ -225,8 +225,8 @@ impl VocabularyProcessor {
         step: ImportStep,
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<ProcessingState, ProcessorError> {
-        let step_path = &step.path.clone();
-        tracing::debug!("Reading vocabulary data from {:?}", step_path);
+        let step_id = step.id().clone();
+        tracing::debug!("Reading vocabulary data from {:?}", step_id);
 
         let csv_bytes = if let Some(sheet_name) = &step.sheet {
             // Excel processing
@@ -242,8 +242,8 @@ impl VocabularyProcessor {
             excel_reader.get_sheet_as_csv(sheet_name)?
         } else {
             // CSV processing
-            step_path.read_contents(s3_client).await.map_err(|e| {
-                ProcessorError::Processing(format!("Failed to read CSV @ {}: {}", &step_path, e))
+            step.path.read_contents(s3_client).await.map_err(|e| {
+                ProcessorError::Processing(format!("Failed to read CSV @ {}: {}", &step_id, e))
             })?
         };
 
@@ -252,16 +252,16 @@ impl VocabularyProcessor {
         // Get headers and build column mapping
         let headers = rdr.headers().map_err(|e| {
             ProcessorError::Processing(format!(
-                "Failed to read CSV headers in file, {}: {}",
-                &step_path, e
+                "Failed to read CSV headers in file / sheet, {}: {}",
+                &step_id, e
             ))
         })?;
 
         // TODO: This is bad... we need to think about a scenario like an excel spreadsheet where we can't know if each sheet is a model file or instance file
-        if !Manifest::is_model_file(headers) {
+        if !Manifest::is_model_file(headers.iter().collect()) {
             tracing::warn!(
                 "CSV or sheet {} does not appear to be a model file, skipping",
-                step_path
+                step_id
             );
             return Ok(take(&mut self.processing_state));
         }
@@ -274,7 +274,7 @@ impl VocabularyProcessor {
 
         let mut mapping = self.mapping_config_from_headers(headers, step, self.is_strict)?;
 
-        let ignorable_headers = self.ignore.get(step_path);
+        let ignorable_headers = self.ignore.get(&step_id);
 
         let headers = match ignorable_headers {
             Some(ignorable_headers) => headers

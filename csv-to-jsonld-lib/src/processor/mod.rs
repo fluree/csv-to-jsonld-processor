@@ -307,14 +307,13 @@ impl Processor {
     }
 
     async fn process_model_step(&mut self, step: ImportStep) -> Result<(), ProcessorError> {
+        let sheet_or_path_name = step.id();
         tracing::info!(
             "Processing model step: {} (types: {:?})",
-            step.path,
+            &sheet_or_path_name,
             step.types
         );
         // let model_path = self.resolve_path(&self.manifest.model.path);
-
-        let step_name = step.path.clone();
 
         if contains_variant!(step.types, StepType::ModelStep(_)) {
             tracing::debug!("Processing as base vocabulary data");
@@ -337,7 +336,7 @@ impl Processor {
             }
         }
 
-        tracing::debug!("At end of step: {:?}", step_name);
+        tracing::debug!("At end of step: {:?}", sheet_or_path_name);
         Ok(())
     }
 
@@ -345,9 +344,11 @@ impl Processor {
         &mut self,
         step: &crate::manifest::ImportStep,
     ) -> Result<(), ProcessorError> {
+        let sheet_or_path_name = step.id();
+
         tracing::info!(
             "Processing instance step: {} (types: {:?})",
-            step.path,
+            &sheet_or_path_name,
             step.types
         );
 
