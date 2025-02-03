@@ -41,12 +41,15 @@ impl InstanceSerializer {
             );
         }
 
+        let base_iri = if self.manifest.instances.base_iri.is_empty() {
+            self.base_iri.clone()
+        } else {
+            self.manifest.instances.base_iri.clone()
+        };
+
         // Add instance baseIRI for reference resolution
-        if !self.manifest.instances.base_iri.is_empty() {
-            context.insert(
-                "@base".to_string(),
-                serde_json::Value::String(self.manifest.instances.base_iri.clone()),
-            );
+        if !base_iri.is_empty() {
+            context.insert("@base".to_string(), serde_json::Value::String(base_iri));
         }
 
         // Add property mappings from vocabulary
@@ -101,7 +104,7 @@ impl InstanceSerializer {
         };
 
         match output_path {
-            StorageLocation::Local(_) => {
+            StorageLocation::Local { .. } => {
                 let instances = serde_json::to_string_pretty(&instances).map_err(|e| {
                     ProcessorError::Processing(format!("Failed to serialize instances: {}", e))
                 })?;

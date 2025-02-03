@@ -470,7 +470,9 @@ pub struct FlureeDataModel {
     pub comment: String,
     #[serde(rename = "@type")]
     pub type_: Vec<String>,
+    #[serde(rename(serialize = "f:properties"))]
     pub properties: Vec<VocabularyTerm>,
+    #[serde(rename(serialize = "f:classes"))]
     pub classes: Vec<VocabularyTerm>,
 }
 

@@ -1,4 +1,7 @@
-use std::fmt::{self, Display, Formatter};
+use std::{
+    collections::HashSet,
+    fmt::{self, Display, Formatter},
+};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -47,7 +50,7 @@ impl From<ProcessorError> for ProcessingMessage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub struct ProcessingMessage {
     pub source: Option<String>,
     pub message: String,
@@ -64,8 +67,8 @@ impl ProcessingMessage {
 
 #[derive(Debug, Default, Clone)]
 pub struct ProcessingState {
-    warnings: Vec<ProcessingMessage>,
-    errors: Vec<ProcessingMessage>,
+    warnings: HashSet<ProcessingMessage>,
+    errors: HashSet<ProcessingMessage>,
 }
 
 impl From<anyhow::Error> for ProcessingMessage {
@@ -99,8 +102,8 @@ impl std::error::Error for ProcessingState {}
 impl ProcessingState {
     pub fn new() -> Self {
         Self {
-            warnings: Vec::new(),
-            errors: Vec::new(),
+            warnings: HashSet::new(),
+            errors: HashSet::new(),
         }
     }
 
@@ -109,19 +112,20 @@ impl ProcessingState {
     }
 
     pub fn add_warning(&mut self, message: impl Into<String>, source: Option<String>) {
-        self.warnings.push(ProcessingMessage::new(message, source));
+        self.warnings
+            .insert(ProcessingMessage::new(message, source));
     }
 
     pub fn add_error(&mut self, message: impl Into<String>, source: Option<String>) {
-        self.errors.push(ProcessingMessage::new(message, source));
+        self.errors.insert(ProcessingMessage::new(message, source));
     }
 
     pub fn add_error_from<T: Into<ProcessingMessage>>(&mut self, error: T) {
-        self.errors.push(error.into());
+        self.errors.insert(error.into());
     }
 
     pub fn add_warning_from<T: Into<ProcessingMessage>>(&mut self, error: T) {
-        self.warnings.push(error.into());
+        self.warnings.insert(error.into());
     }
 
     pub fn has_errors(&self) -> bool {
@@ -132,12 +136,12 @@ impl ProcessingState {
         !self.warnings.is_empty()
     }
 
-    pub fn get_warnings(&self) -> &[ProcessingMessage] {
-        &self.warnings
+    pub fn get_warnings(&self) -> Vec<&ProcessingMessage> {
+        self.warnings.iter().collect()
     }
 
-    pub fn get_errors(&self) -> &[ProcessingMessage] {
-        &self.errors
+    pub fn get_errors(&self) -> Vec<&ProcessingMessage> {
+        self.errors.iter().collect()
     }
 
     pub fn merge(&mut self, other: ProcessingState) {
@@ -166,11 +170,11 @@ impl ProcessingOutcome {
             ProcessingOutcome::Success
         } else if state.has_errors() {
             ProcessingOutcome::Failure {
-                errors: state.errors,
-                warnings: state.warnings,
+                errors: state.errors.into_iter().collect(),
+                warnings: state.warnings.into_iter().collect(),
             }
         } else {
-            ProcessingOutcome::SuccessWithWarnings(state.warnings)
+            ProcessingOutcome::SuccessWithWarnings(state.warnings.into_iter().collect())
         }
     }
 

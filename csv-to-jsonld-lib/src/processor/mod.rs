@@ -91,7 +91,10 @@ impl ProcessorBuilder {
             Some(path) => path,
             None => {
                 tracing::warn!("Instance output path not set, using current directory");
-                StorageLocation::Local(std::env::current_dir()?)
+                StorageLocation::Local {
+                    file_name: std::env::current_dir()?,
+                    base_path: None,
+                }
             }
         };
 
@@ -99,13 +102,16 @@ impl ProcessorBuilder {
             Some(path) => path,
             None => {
                 tracing::warn!("Model output path not set, using current directory");
-                StorageLocation::Local(std::env::current_dir()?)
+                StorageLocation::Local {
+                    file_name: std::env::current_dir()?,
+                    base_path: None,
+                }
             }
         };
 
         Processor::with_base_path(
             self.manifest,
-            // base_path,
+            base_path,
             self.is_strict,
             instance_output_path,
             model_output_path,
@@ -121,7 +127,7 @@ pub struct Processor {
     manifest: Arc<Manifest>,
     vocabulary_manager: VocabularyManager,
     instance_manager: InstanceManager,
-    // base_path: PathBuf,
+    base_path: PathBuf,
     instance_output_path: StorageLocation,
     model_output_path: StorageLocation,
     export_vocab_meta: Option<StorageLocation>,
@@ -130,9 +136,9 @@ pub struct Processor {
 }
 
 impl Processor {
-    pub async fn with_base_path(
+    pub async fn with_base_path<P: Into<PathBuf>>(
         manifest: Manifest,
-        // base_path: P,
+        base_path: P,
         is_strict: bool,
         instance_output_path: StorageLocation,
         model_output_path: StorageLocation,
@@ -140,7 +146,7 @@ impl Processor {
         vocab_meta_path: Option<StorageLocation>,
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<Self, ProcessorError> {
-        // let base_path = base_path.into();
+        let base_path = base_path.into();
         // let output_path = output_path.try_into()?;
         let manifest = Arc::new(manifest);
         // tracing::info!("Creating processor with base path: {:?}", base_path);
@@ -155,7 +161,7 @@ impl Processor {
         Ok(Self {
             vocabulary_manager,
             instance_manager: InstanceManager::new(Arc::clone(&manifest), is_strict, base_iri),
-            // base_path,
+            base_path,
             instance_output_path,
             model_output_path,
             manifest,
@@ -244,6 +250,12 @@ impl Processor {
             }
         }
 
+        if self.processing_state.has_errors() {
+            return Ok(ProcessingOutcome::from_state(take(
+                &mut self.processing_state,
+            )));
+        }
+
         // Save instance data
         if let Err(e) = self
             .instance_manager
@@ -254,6 +266,8 @@ impl Processor {
                 format!("Failed to save instances: {}", e),
                 Some("save_instances".to_string()),
             );
+        } else {
+            tracing::info!("Saved instances to: {}", self.instance_output_path);
         }
 
         let (vocabulary, instance_state) = self.instance_manager.take_vocabulary();
@@ -274,6 +288,11 @@ impl Processor {
                     format!("Failed to save vocabulary metadata: {}", e),
                     Some("save_vocabulary_meta".to_string()),
                 );
+            } else {
+                tracing::info!(
+                    "Saved vocabulary metadata to: {}",
+                    self.export_vocab_meta.as_ref().unwrap()
+                );
             }
         }
 
@@ -286,6 +305,8 @@ impl Processor {
                 format!("Failed to save vocabulary: {}", e),
                 Some("save_vocabulary".to_string()),
             );
+        } else {
+            tracing::info!("Saved vocabulary to: {}", self.model_output_path);
         }
 
         let outcome = ProcessingOutcome::from_state(take(&mut self.processing_state));
@@ -313,6 +334,8 @@ impl Processor {
             &sheet_or_path_name,
             step.types
         );
+
+        let step = step.with_base_path(&self.base_path);
         // let model_path = self.resolve_path(&self.manifest.model.path);
 
         if contains_variant!(step.types, StepType::ModelStep(_)) {
@@ -346,10 +369,19 @@ impl Processor {
     ) -> Result<(), ProcessorError> {
         let sheet_or_path_name = step.id();
 
+        if (sheet_or_path_name.to_lowercase() == "model") {
+            tracing::debug!("Skipping model step in instance processing");
+            return Ok(());
+        }
+
         tracing::info!(
-            "Processing instance step: {} (types: {:?})",
+            "Processing instance step: {} (types: {})",
             &sheet_or_path_name,
             step.types
+                .iter()
+                .map(|step| step.to_string())
+                .collect::<Vec<String>>()
+                .join(", ")
         );
 
         // let instance_path = self.resolve_path(&self.manifest.instances.path);
@@ -372,27 +404,29 @@ impl Processor {
             }
         };
 
+        let step = step.with_base_path(&self.base_path);
+
         // Process based on step type
         let result = match instance_step {
             InstanceStep::BasicInstanceStep | InstanceStep::PicklistStep => {
                 tracing::debug!("Processing as basic instance data");
                 self.instance_manager
                     // .process_simple_instance(step, instance_path.to_str().unwrap())
-                    .process_simple_instance(step, self.s3_client.as_ref())
+                    .process_simple_instance(&step, self.s3_client.as_ref())
                     .await
             }
             InstanceStep::SubClassInstanceStep => {
                 tracing::debug!("Processing as subclass instance data");
                 self.instance_manager
                     // .process_subclass_instance(step, instance_path.to_str().unwrap())
-                    .process_subclass_instance(step, self.s3_client.as_ref())
+                    .process_subclass_instance(&step, self.s3_client.as_ref())
                     .await
             }
             InstanceStep::PropertiesInstanceStep => {
                 tracing::debug!("Processing as properties instance data");
                 self.instance_manager
                     // .process_properties_instance(step, instance_path.to_str().unwrap())
-                    .process_properties_instance(step, self.s3_client.as_ref())
+                    .process_properties_instance(&step, self.s3_client.as_ref())
                     .await
             }
         };
@@ -407,6 +441,7 @@ impl Processor {
                 } else {
                     self.processing_state.add_warning_from(e);
                 }
+                // self.processing_state.add_error_from(e);
             }
         }
 

@@ -16,7 +16,6 @@ impl InstanceProcessor {
             PropertyDatatype::ID => Ok(JsonValue::String(value.to_string())),
             PropertyDatatype::Date => {
                 let trimmed_value = value.trim();
-                tracing::info!("Trimmed date value: {}", trimmed_value);
                 let date_result = DATE_FORMATS
                     .iter()
                     .find_map(|fmt| {
@@ -213,6 +212,7 @@ impl InstanceProcessor {
                     value
                 ),
             );
+            tracing::info!("!!!! iri: {}", iri);
             let does_picklist_contain_value = enum_picklist
                 .iter()
                 .any(|picklist_value| picklist_value.to_string() == iri);

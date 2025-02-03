@@ -18,20 +18,39 @@ impl<T: Read + Seek + Send> ReadSeek for T {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StorageLocation {
-    Local(PathBuf),
-    S3 { bucket: String, key: PathBuf },
+    Local {
+        base_path: Option<PathBuf>,
+        file_name: PathBuf,
+    },
+    S3 {
+        bucket: String,
+        key: PathBuf,
+    },
 }
 
 impl Default for StorageLocation {
     fn default() -> Self {
-        StorageLocation::Local(PathBuf::new())
+        StorageLocation::Local {
+            base_path: None,
+            file_name: PathBuf::new(),
+        }
     }
 }
 
 impl Display for StorageLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StorageLocation::Local(path) => write!(f, "{}", path.display()),
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                if let Some(base_path) = base_path {
+                    write!(f, "{}", base_path.join(file_name).display())
+                } else {
+                    write!(f, "{}", file_name.display())
+                }
+            }
+            // StorageLocation::Local(path) => write!(f, "{}", path.display()),
             StorageLocation::S3 { bucket, key } => write!(f, "s3://{}/{}", bucket, key.display()),
         }
     }
@@ -53,7 +72,17 @@ impl Serialize for StorageLocation {
         S: Serializer,
     {
         match self {
-            StorageLocation::Local(path) => serializer.serialize_str(&path.to_string_lossy()),
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                if let Some(base_path) = base_path {
+                    serializer.serialize_str(&base_path.join(file_name).to_string_lossy())
+                } else {
+                    serializer.serialize_str(&file_name.to_string_lossy())
+                }
+            }
+            // StorageLocation::Local(path) => serializer.serialize_str(&path.to_string_lossy()),
             StorageLocation::S3 { bucket, key } => {
                 serializer.serialize_str(&format!("s3://{}/{}", bucket, key.to_string_lossy()))
             }
@@ -68,7 +97,11 @@ impl FromStr for StorageLocation {
         if let Ok((bucket, key)) = StorageLocation::parse_s3_uri(s) {
             Ok(StorageLocation::S3 { bucket, key })
         } else {
-            Ok(StorageLocation::Local(PathBuf::from(s)))
+            Ok(StorageLocation::Local {
+                base_path: None,
+                file_name: PathBuf::from(s),
+            })
+            // Ok(StorageLocation::Local(PathBuf::from(s)))
         }
     }
 }
@@ -81,7 +114,11 @@ impl TryFrom<String> for StorageLocation {
             Ok(StorageLocation::S3 { bucket, key })
         } else {
             match PathBuf::from_str(&value) {
-                Ok(path) => Ok(StorageLocation::Local(path)),
+                Ok(path) => Ok(StorageLocation::Local {
+                    base_path: None,
+                    file_name: path,
+                }),
+                // Ok(path) => Ok(StorageLocation::Local(path)),
                 Err(_) => Err(ProcessorError::InvalidManifest(
                     "Invalid storage location".into(),
                 )),
@@ -96,7 +133,18 @@ impl StorageLocation {
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> io::Result<Vec<u8>> {
         match self {
-            StorageLocation::Local(path) => fs::read(path),
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                let path = if let Some(base_path) = base_path {
+                    base_path.join(file_name)
+                } else {
+                    file_name.clone()
+                };
+                fs::read(path)
+            }
+            // StorageLocation::Local(path) => fs::read(path),
             StorageLocation::S3 { bucket, key } => {
                 let s3_client = s3_client.expect("S3 client is required for S3 operations");
 
@@ -120,7 +168,17 @@ impl StorageLocation {
 
     pub fn is_dir(&self) -> bool {
         match self {
-            StorageLocation::Local(path) => path.is_dir(),
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                if let Some(base_path) = base_path {
+                    base_path.join(file_name).is_dir()
+                } else {
+                    file_name.is_dir()
+                }
+            }
+            // StorageLocation::Local(path) => path.is_dir(),
             // TODO: This isn't great, but the only other option is to make an S3 request to list
             StorageLocation::S3 { key, .. } => key.to_string_lossy().ends_with('/'),
         }
@@ -128,7 +186,17 @@ impl StorageLocation {
 
     pub fn join(&self, path: &str) -> StorageLocation {
         match self {
-            StorageLocation::Local(base) => StorageLocation::Local(base.join(path)),
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                let new_file_name = file_name.join(path);
+                StorageLocation::Local {
+                    base_path: base_path.clone(),
+                    file_name: new_file_name,
+                }
+            }
+            // StorageLocation::Local(base) => StorageLocation::Local(base.join(path)),
             StorageLocation::S3 { bucket, key } => {
                 let new_key = key.join(path);
                 StorageLocation::S3 {
@@ -144,10 +212,22 @@ impl StorageLocation {
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> io::Result<Box<dyn ReadSeek>> {
         match self {
-            StorageLocation::Local(path) => {
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                let path = if let Some(base_path) = base_path {
+                    base_path.join(file_name)
+                } else {
+                    file_name.clone()
+                };
                 let file = fs::File::open(path)?;
                 Ok(Box::new(file))
             }
+            // StorageLocation::Local(path) => {
+            //     let file = fs::File::open(path)?;
+            //     Ok(Box::new(file))
+            // }
             StorageLocation::S3 { .. } => {
                 // For S3, we still need to download the content since we can't stream it directly
                 // But we wrap it in a Cursor to provide a Read interface
@@ -163,8 +243,16 @@ impl StorageLocation {
         s3_client: Option<&aws_sdk_s3::Client>,
     ) -> Result<(), ProcessorError> {
         match self {
-            StorageLocation::Local(output_path) => {
-                if let Some(parent) = output_path.parent() {
+            StorageLocation::Local {
+                base_path,
+                file_name,
+            } => {
+                let path = if let Some(base_path) = base_path {
+                    base_path.join(file_name)
+                } else {
+                    file_name.clone()
+                };
+                if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent).map_err(|e| {
                         ProcessorError::Processing(format!(
                             "Failed to create directory for instances file: {}",
@@ -173,17 +261,38 @@ impl StorageLocation {
                     })?;
                 }
 
-                fs::write(output_path, instances).map_err(|e| {
+                fs::write(path.clone(), instances).map_err(|e| {
                     ProcessorError::Processing(format!(
                         "Failed to write file @ {}: {}",
-                        &output_path.to_string_lossy(),
+                        &path.to_string_lossy(),
                         e
                     ))
                 })?;
 
-                let output_path_str = output_path.to_string_lossy();
-                tracing::info!("Saved instances to {}", output_path_str);
+                let path_str = path.to_string_lossy();
+                // tracing::info!("Saved instances to {}", path_str);
             }
+            // StorageLocation::Local(output_path) => {
+            //     if let Some(parent) = output_path.parent() {
+            //         fs::create_dir_all(parent).map_err(|e| {
+            //             ProcessorError::Processing(format!(
+            //                 "Failed to create directory for instances file: {}",
+            //                 e
+            //             ))
+            //         })?;
+            //     }
+
+            //     fs::write(output_path, instances).map_err(|e| {
+            //         ProcessorError::Processing(format!(
+            //             "Failed to write file @ {}: {}",
+            //             &output_path.to_string_lossy(),
+            //             e
+            //         ))
+            //     })?;
+
+            //     let output_path_str = output_path.to_string_lossy();
+            //     tracing::info!("Saved instances to {}", output_path_str);
+            // }
             StorageLocation::S3 { bucket, key } => {
                 let s3_client = s3_client.ok_or(ProcessorError::InvalidManifest(
                     "S3 client is required for S3 operations".into(),
@@ -206,17 +315,19 @@ impl StorageLocation {
 
     fn file_name(&self) -> String {
         match self {
-            StorageLocation::Local(key) | StorageLocation::S3 { key, .. } => key
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string(),
+            StorageLocation::Local { file_name: key, .. } | StorageLocation::S3 { key, .. } => {
+                key.file_name().unwrap().to_string_lossy().to_string()
+            } // StorageLocation::Local(key) | StorageLocation::S3 { key, .. } => key
+              //     .file_name()
+              //     .unwrap_or_default()
+              //     .to_string_lossy()
+              //     .to_string(),
         }
     }
 
     pub fn file_stem(&self) -> Option<String> {
         match self {
-            StorageLocation::Local(key) | StorageLocation::S3 { key, .. } => {
+            StorageLocation::Local { file_name: key, .. } | StorageLocation::S3 { key, .. } => {
                 key.file_stem().map(|s| s.to_string_lossy().to_string())
             }
         }
@@ -268,6 +379,33 @@ pub enum StepType {
     CSVImportStep,
     ModelStep(ModelStep),
     InstanceStep(InstanceStep),
+}
+
+impl Display for StepType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StepType::CSVImportStep => write!(f, "CSVImportStep"),
+            StepType::ModelStep(ModelStep::BasicVocabularyStep) => {
+                write!(f, "BasicVocabularyStep")
+            }
+            StepType::ModelStep(ModelStep::SubClassVocabularyStep) => {
+                write!(f, "SubClassVocabularyStep")
+            }
+            StepType::ModelStep(ModelStep::PropertiesVocabularyStep) => {
+                write!(f, "PropertiesVocabularyStep")
+            }
+            StepType::InstanceStep(InstanceStep::BasicInstanceStep) => {
+                write!(f, "BasicInstanceStep")
+            }
+            StepType::InstanceStep(InstanceStep::PicklistStep) => write!(f, "PicklistStep"),
+            StepType::InstanceStep(InstanceStep::SubClassInstanceStep) => {
+                write!(f, "SubClassInstanceStep")
+            }
+            StepType::InstanceStep(InstanceStep::PropertiesInstanceStep) => {
+                write!(f, "PropertiesInstanceStep")
+            }
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for StepType {
@@ -368,6 +506,18 @@ impl ImportStep {
         } else {
             self.path.file_stem().unwrap()
         }
+    }
+
+    pub fn with_base_path(&self, base_path: &Path) -> Self {
+        let mut new_step = self.clone();
+        new_step.path = match &self.path {
+            StorageLocation::Local { file_name, .. } => StorageLocation::Local {
+                base_path: Some(base_path.to_path_buf()),
+                file_name: file_name.clone(),
+            },
+            _ => self.path.clone(),
+        };
+        new_step
     }
 }
 
@@ -611,18 +761,15 @@ impl Manifest {
     }
 
     pub fn is_model_file(headers: Vec<&str>) -> bool {
-        // if every single header is contained in the list: ["Class ID", "Class Name", "Property ID", "Property Name", "Property Description", "Type", "Class Range"]
+        // if all of these headers are present, it's a model file
         let model_headers = [
             "Class ID",
             "Class Name",
-            "Class Description",
             "Property ID",
             "Property Name",
-            "Property Description",
             "Type",
-            "Class Range",
         ];
-        headers.iter().all(|h| model_headers.contains(&h))
+        model_headers.iter().all(|h| headers.contains(h))
     }
 }
 

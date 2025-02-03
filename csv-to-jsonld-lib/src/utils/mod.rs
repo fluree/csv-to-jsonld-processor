@@ -34,6 +34,10 @@ pub fn to_pascal_case(s: &str) -> String {
         .collect()
 }
 
+pub fn is_valid_url(url: &str) -> bool {
+    url::Url::parse(url).is_ok()
+}
+
 /// Expands a relative IRI with a base IRI. Only expands if the relative IRI does not already start with a scheme
 pub fn expand_iri_with_base(base_iri: &str, possibly_relative_iri: &str) -> String {
     // Attempt to parse the base IRI
@@ -49,7 +53,7 @@ pub fn expand_iri_with_base(base_iri: &str, possibly_relative_iri: &str) -> Stri
                 Ok(url) => url.to_string(), // Return absolute URL as is
                 Err(_) => {
                     base_url.set_fragment(Some(possibly_relative_iri));
-                    base_url.to_string() // Append relative IRI to the fragment
+                    urlencoding::decode(base_url.as_str()).unwrap().to_string() // Append relative IRI to the fragment
                 }
             };
         } else {
@@ -58,9 +62,15 @@ pub fn expand_iri_with_base(base_iri: &str, possibly_relative_iri: &str) -> Stri
     }
 
     // Standard resolution for relative IRIs
-    base_url
-        .join(possibly_relative_iri)
-        .map_or_else(|_| possibly_relative_iri.to_string(), |url| url.to_string())
+    let result = base_url.join(possibly_relative_iri);
+    match result {
+        Ok(url) => urlencoding::decode(url.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or(possibly_relative_iri.to_string()),
+        Err(_) => possibly_relative_iri.to_string(), // Return input as is if join fails
+    }
+
+    // urlencoding::decode(result)
 }
 
 /// Normalize a string to be used as an IRI label
@@ -77,6 +87,9 @@ pub fn normalize_label_for_iri(label: &str) -> String {
 
 /// Convert a string to camelCase
 pub fn to_camel_case(s: &str) -> String {
+    if is_valid_url(s) {
+        return s.to_string();
+    }
     let pascal = to_pascal_case(s);
     let mut c = pascal.chars();
     match c.next() {
@@ -203,6 +216,19 @@ mod tests {
     }
 
     #[test]
+    fn test_expand_iri_with_base_and_spaces() {
+        init_logging();
+        let base = "http://example.com/base/";
+        let relative = "resource with spaces";
+
+        info!("Testing expand with valid relative");
+        assert_eq!(
+            super::expand_iri_with_base(base, relative),
+            "http://example.com/base/resource with spaces"
+        );
+    }
+
+    #[test]
     fn test_expand_iri_with_base() {
         init_logging();
 
@@ -241,5 +267,13 @@ mod tests {
 
         info!("Testing expand with prefixed relative");
         assert_eq!(super::expand_iri_with_base(base, relative), "prefix:value");
+
+        info!("Testing expand with slash-delimited suffix");
+
+        let relative = "path-to/name with spaces";
+        assert_eq!(
+            super::expand_iri_with_base(base, relative),
+            "http://example.com/base#path-to/name with spaces"
+        );
     }
 }

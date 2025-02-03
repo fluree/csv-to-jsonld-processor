@@ -45,11 +45,17 @@ impl From<&VocabularyProcessor> for VocabularyProcessorMetadata {
             .into_iter()
             .map(|(k, v)| (k.into(), v))
             .collect();
+        let base_iri = value.manifest.model.base_iri.clone();
+        let base_iri = if base_iri.is_empty() {
+            value.base_iri.clone()
+        } else {
+            base_iri
+        };
         Self {
             vocabulary: StrictVocabularyMap::from(value.vocabulary.clone()),
             class_properties,
             ignore: value.ignore.clone(),
-            base_iri: value.manifest.model.base_iri.clone(),
+            base_iri,
             namespace_iris: value.manifest.model.namespace_iris,
         }
     }
@@ -266,9 +272,7 @@ impl VocabularyProcessor {
             return Ok(take(&mut self.processing_state));
         }
 
-        tracing::info!("Headers: {:#?}", headers);
-
-        tracing::debug!("CSV headers: {:?}", headers);
+        tracing::debug!("Headers: {:#?}", headers);
 
         let sub_class_of = step.sub_class_of.clone();
 

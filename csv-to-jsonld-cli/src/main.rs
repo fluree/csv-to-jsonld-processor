@@ -41,6 +41,10 @@ enum Commands {
         /// Export vocabulary metadata to a file
         #[arg(long, value_name = "VOCABULARY METADATA OUTPUT PATH")]
         export_vocab_meta: Option<StorageLocation>,
+
+        /// Path to vocabulary metadata file to import
+        #[arg(long, value_name = "VOCABULARY METADATA INPUT PATH")]
+        import_vocab_meta: Option<StorageLocation>,
     },
     /// Generate a manifest template
     GenerateManifest {
@@ -121,8 +125,18 @@ async fn main() -> Result<()> {
             strict,
             output,
             export_vocab_meta,
+            import_vocab_meta,
             ..
-        } => process_command(manifest, *strict, output, export_vocab_meta.clone()).await,
+        } => {
+            process_command(
+                manifest,
+                *strict,
+                output,
+                export_vocab_meta.clone(),
+                import_vocab_meta.clone(),
+            )
+            .await
+        }
     }
 }
 
@@ -131,6 +145,7 @@ async fn process_command(
     strict: bool,
     output: &Option<PathBuf>,
     export_vocab_meta: Option<StorageLocation>,
+    import_vocab_meta: Option<StorageLocation>,
 ) -> Result<()> {
     let mut processing_state = ProcessingState::new();
     if strict {
@@ -183,7 +198,15 @@ async fn process_command(
         tracing::info!(
             "No model files specified in manifest, attempting to load vocabulary metadata."
         );
-        let vocab_meta_path = base_path.join("data_model.tmp");
+        let meta_path_key = match import_vocab_meta {
+            Some(StorageLocation::Local { file_name, .. }) => {
+                file_name.to_string_lossy().to_string()
+            }
+            Some(StorageLocation::S3 { key, .. }) => key.to_string_lossy().to_string(),
+            None => "model_metadata.tmp".to_string(),
+        };
+
+        let vocab_meta_path = base_path.join(meta_path_key);
         processor_builder
             .with_vocab_meta_path(vocab_meta_path.to_string_lossy().to_string())
             .map_err(|e| {
@@ -205,7 +228,6 @@ async fn process_command(
         .await
         .context("Failed to process CSV files")?;
 
-    info!("Beginning CSV processing...");
     let final_outcome = proto_outcome.merge_outcome(processing_outcome);
 
     final_outcome.report()?;

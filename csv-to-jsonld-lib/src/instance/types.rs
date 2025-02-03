@@ -19,6 +19,11 @@ pub struct InstanceProcessor {
 impl InstanceProcessor {
     pub fn new(manifest: Arc<Manifest>, is_strict: bool, model_base_iri: String) -> Self {
         let instances_base_iri = manifest.instances.base_iri.clone();
+        let instances_base_iri = if instances_base_iri.is_empty() {
+            model_base_iri.clone()
+        } else {
+            instances_base_iri
+        };
         let ignore = manifest
             .instances
             .sequence

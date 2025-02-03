@@ -51,7 +51,7 @@ impl VocabularySerializer {
         };
 
         match output_path {
-            StorageLocation::Local(_) => {
+            StorageLocation::Local { .. } => {
                 let vocab_json = serde_json::to_string_pretty(&vocabulary).map_err(|e| {
                     ProcessorError::Processing(format!("Failed to serialize vocabulary: {}", e))
                 })?;

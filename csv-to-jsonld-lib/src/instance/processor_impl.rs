@@ -25,32 +25,6 @@ impl InstanceProcessor {
 
         let sheet_or_path_name = step.id();
 
-        if class_type.is_empty() {
-            let file_name = &sheet_or_path_name;
-            class_type = to_pascal_case(file_name);
-            self.processing_state.add_warning(
-                format!("No explicit instance type provided for CSV at path: {}. Using CSV/sheet name as default: {}", &sheet_or_path_name, &class_type),
-                Some("instance_processing".to_string()),
-            );
-        }
-
-        let vocab = self.vocabulary.as_ref().ok_or_else(|| {
-            ProcessorError::Processing("Vocabulary must be set before processing instances".into())
-        })?;
-
-        let override_label = step
-            .overrides
-            .iter()
-            .find(|over_ride| over_ride.map_to == "@id")
-            .map(|over_ride| &over_ride.column);
-
-        let identifier_label = vocab.get_identifier_label(&class_type).or(override_label).ok_or_else(|| {
-            ProcessorError::Processing(format!(
-                "No identifier property found for class '{}'. To import instances of this class, your data model CSVs must indicate which column of the instance data will be used as the identifier (\"@id\") for instances of this class. Or, you must provide an \"override\" where the appropriate column maps to \"@id\".",
-                class_type
-            ))
-        })?.clone();
-
         let csv_bytes = if let Some(sheet_name) = &step.sheet {
             // Excel processing
             let excel_file = self.manifest.excel_file.as_ref().ok_or_else(|| {
@@ -65,7 +39,12 @@ impl InstanceProcessor {
             excel_reader.get_sheet_as_csv(sheet_name)?
         } else {
             // CSV processing
-            step.path.read_contents(s3_client).await?
+            step.path.read_contents(s3_client).await.map_err(|e| {
+                ProcessorError::Processing(format!(
+                    "Failed to read CSV file for {:#?}: {}",
+                    &step.path, e
+                ))
+            })?
         };
 
         let mut rdr = csv::Reader::from_reader(csv_bytes.as_slice());
@@ -82,17 +61,44 @@ impl InstanceProcessor {
         if self.manifest.excel_file.is_some()
             && Manifest::is_model_file(headers.iter().map(|h| h.as_str()).collect())
         {
-            tracing::warn!(
+            tracing::info!(
                 "CSV or sheet {} does not appear to be an instance file, skipping",
                 sheet_or_path_name
             );
             return Ok(take(&mut self.processing_state));
         }
 
+        if class_type.is_empty() {
+            let file_name = &sheet_or_path_name;
+            class_type = to_pascal_case(file_name);
+            if self.is_strict {
+                self.processing_state.add_warning(
+                    format!("No explicit instance type provided for CSV at path: {}. Using CSV/sheet name as default: {}", &sheet_or_path_name, &class_type),
+                    Some("instance_processing".to_string()),
+                );
+            }
+        }
+
+        let vocab = self.vocabulary.as_ref().ok_or_else(|| {
+            ProcessorError::Processing("Vocabulary must be set before processing instances".into())
+        })?;
+
+        let override_label = step
+            .overrides
+            .iter()
+            .find(|over_ride| over_ride.map_to == "@id")
+            .map(|over_ride| &over_ride.column);
+
+        let identifier_label = vocab.get_identifier_label(&class_type).or(override_label).ok_or_else(|| {
+            ProcessorError::Processing(format!(
+                "[Processing: {sheet_or_path_name}] No identifier property found for class '{class_type}'. Please check that your data model includes this class, or confirm file data is correct."
+            ))
+        })?.clone();
+
         if let Some(pivot_columns) = &step.pivot_columns {
             self.validate_pivot_columns(pivot_columns.iter().collect(), &class_type)?;
         };
-
+        tracing::info!("pre-validated-headers: {headers:?}");
         let headers = self.validate_headers(
             &headers,
             &class_type,
@@ -100,6 +106,7 @@ impl InstanceProcessor {
             step.pivot_columns.as_ref(),
             step.map_to_label.as_ref(),
         )?;
+        tracing::info!("validated-headers: {headers:?}");
 
         let id_column_index = headers
             .iter()
@@ -119,6 +126,8 @@ impl InstanceProcessor {
                         .join(", ")
                 ))
             })?;
+
+        let mut mismatched_rows = vec![];
 
         for (result_row_num, result) in rdr.records().enumerate() {
             let record = match result {
@@ -162,20 +171,7 @@ impl InstanceProcessor {
             let mut properties = Map::new();
 
             if headers.len() != record.len() {
-                let msg = format!(
-                    "Row {} has different number of columns than headers: RECORD: {} HEADERS: {}",
-                    result_row_num + 1,
-                    record.len(),
-                    headers.len()
-                );
-                let error = ProcessorError::Processing(msg);
-                if self.is_strict {
-                    self.processing_state.add_error_from(error);
-                    continue;
-                } else {
-                    self.processing_state.add_warning_from(error);
-                    continue;
-                }
+                mismatched_rows.push(result_row_num + 1);
             }
 
             for (i, header) in headers.iter().enumerate() {
@@ -189,7 +185,10 @@ impl InstanceProcessor {
                                     })
                                 });
 
-                            let vec_value = if let Some(delimiter) = step.delimit_values_on.as_ref()
+                            // TODO: Fix this
+                            let default_delimiter = ";".to_string();
+                            let vec_value = if let Some(delimiter) =
+                                step.delimit_values_on.as_ref().or(Some(&default_delimiter))
                             {
                                 if header.datatype == crate::types::PropertyDatatype::String {
                                     vec![value]
@@ -324,6 +323,15 @@ impl InstanceProcessor {
                     }
                 }
             }
+        }
+
+        if !mismatched_rows.is_empty() {
+            let msg = format!(
+                "The number of cells in the following rows does not match the number of headers: [{}]",
+                mismatched_rows.iter().map(|r| r.to_string()).collect::<Vec<String>>().join(", ")
+            );
+            let error = ProcessorError::Processing(msg);
+            self.processing_state.add_error_from(error);
         }
 
         Ok(take(&mut self.processing_state))
